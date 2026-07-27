@@ -1,0 +1,167 @@
+- generic [ref=f3e3]:
+  - complementary [ref=f3e4]:
+    - link "新实中学 新实中学 学校管理后台" [ref=f3e5] [cursor=pointer]:
+      - /url: /dashboard
+      - img "新实中学" [ref=f3e6]
+      - generic [ref=f3e7]:
+        - generic [ref=f3e8]: 新实中学
+        - generic [ref=f3e9]: 学校管理后台
+    - navigation [ref=f3e10]:
+      - link "🏠 工作台" [ref=f3e11] [cursor=pointer]:
+        - /url: /dashboard
+      - link "基础配置" [ref=f3e12] [cursor=pointer]:
+        - /url: /config
+      - link "用户管理" [ref=f3e13] [cursor=pointer]:
+        - /url: /users
+      - link "班级管理" [ref=f3e14] [cursor=pointer]:
+        - /url: /classes
+      - link "学生管理" [ref=f3e15] [cursor=pointer]:
+        - /url: /students
+      - link "成绩管理" [ref=f3e16] [cursor=pointer]:
+        - /url: /scores
+      - link "成绩单管理" [ref=f3e17] [cursor=pointer]:
+        - /url: /transcripts
+      - link "家长管理" [ref=f3e18] [cursor=pointer]:
+        - /url: /parents
+  - main [ref=f3e20]:
+    - generic [ref=f3e21]:
+      - generic [ref=f3e22]:
+        - paragraph [ref=f3e23]: 学校管理
+        - heading "系统管理员" [level=2] [ref=f3e24]
+      - button "系统管理员 ⌄" [ref=f3e27] [cursor=pointer]:
+        - text: 系统管理员
+        - generic [ref=f3e28]: ⌄
+    - generic [ref=f3e29]:
+      - generic [ref=f3e30]:
+        - generic [ref=f3e31]:
+          - paragraph [ref=f3e32]: Configuration
+          - heading "系统配置" [level=1] [ref=f3e33]
+          - paragraph [ref=f3e34]: 管理角色、学期、课程、年级课程和班级任课教师等基础配置。
+        - button "刷新中..." [disabled] [ref=f3e35]
+      - generic [ref=f3e39]:
+        - generic [ref=f3e40]:
+          - generic [ref=f3e41]:
+            - generic [ref=f3e42]: 角
+            - generic [ref=f3e43]:
+              - heading "角色定义" [level=2] [ref=f3e44]
+              - paragraph [ref=f3e45]: 管理系统中的角色编码与名称，如超级管理员、班主任、教师等。
+          - button "新增角色" [ref=f3e46] [cursor=pointer]
+        - generic [ref=f3e48]:
+          - generic [ref=f3e49]: 🔐
+          - paragraph [ref=f3e50]: 暂无角色，点击右上角"新增角色"创建
+      - generic [ref=f3e51]:
+        - generic [ref=f3e52]:
+          - generic [ref=f3e53]:
+            - generic [ref=f3e54]: 期
+            - generic [ref=f3e55]:
+              - heading "学期管理" [level=2] [ref=f3e56]
+              - paragraph [ref=f3e57]: 定义学年学期信息，包含学期编码、学年、起止日期等。
+          - button "新增学期" [ref=f3e58] [cursor=pointer]
+        - generic [ref=f3e60]:
+          - generic [ref=f3e61]: 📅
+          - paragraph [ref=f3e62]: 暂无学期，点击右上角"新增学期"创建
+      - generic [ref=f3e63]:
+        - generic [ref=f3e64]:
+          - generic [ref=f3e65]:
+            - generic [ref=f3e66]: 科
+            - generic [ref=f3e67]:
+              - heading "课程主数据" [level=2] [ref=f3e68]
+              - paragraph [ref=f3e69]: 定义课程编码、名称、分数范围及启用状态，点击编辑按钮修改。
+          - button "新增课程" [ref=f3e70] [cursor=pointer]
+        - generic [ref=f3e72]:
+          - generic [ref=f3e73]: 📚
+          - paragraph [ref=f3e74]: 暂无课程，点击右上角"新增课程"创建
+      - generic [ref=f3e75]:
+        - generic [ref=f3e76]:
+          - generic [ref=f3e77]:
+            - generic [ref=f3e78]: 考
+            - generic [ref=f3e79]:
+              - heading "考试类型" [level=2] [ref=f3e80]
+              - paragraph [ref=f3e81]: 定义考试类型，如期中考试、期末考试、月考、联考等，用于成绩分类管理。
+          - button "新增考试类型" [ref=f3e82] [cursor=pointer]
+        - generic [ref=f3e84]:
+          - generic [ref=f3e85]: 📝
+          - paragraph [ref=f3e86]: 暂无考试类型，点击右上角"新增考试类型"创建
+      - generic [ref=f3e87]:
+        - generic [ref=f3e88]:
+          - generic [ref=f3e89]:
+            - generic [ref=f3e90]: 招
+            - generic [ref=f3e91]:
+              - heading "年级管理" [level=2] [ref=f3e92]
+              - paragraph [ref=f3e93]: 设置学校当前招收哪些年级的学生，勾选后保存即可生效。
+          - button "保存配置" [ref=f3e94] [cursor=pointer]
+        - generic [ref=f3e95]:
+          - generic [ref=f3e96] [cursor=pointer]:
+            - checkbox "小学一年级" [ref=f3e97]
+            - generic [ref=f3e98]: 小学一年级
+          - generic [ref=f3e99] [cursor=pointer]:
+            - checkbox "小学二年级" [ref=f3e100]
+            - generic [ref=f3e101]: 小学二年级
+          - generic [ref=f3e102] [cursor=pointer]:
+            - checkbox "小学三年级" [ref=f3e103]
+            - generic [ref=f3e104]: 小学三年级
+          - generic [ref=f3e105] [cursor=pointer]:
+            - checkbox "小学四年级" [ref=f3e106]
+            - generic [ref=f3e107]: 小学四年级
+          - generic [ref=f3e108] [cursor=pointer]:
+            - checkbox "小学五年级" [ref=f3e109]
+            - generic [ref=f3e110]: 小学五年级
+          - generic [ref=f3e111] [cursor=pointer]:
+            - checkbox "小学六年级" [ref=f3e112]
+            - generic [ref=f3e113]: 小学六年级
+          - generic [ref=f3e114] [cursor=pointer]:
+            - checkbox "初中一年级" [ref=f3e115]
+            - generic [ref=f3e116]: 初中一年级
+          - generic [ref=f3e117] [cursor=pointer]:
+            - checkbox "初中二年级" [ref=f3e118]
+            - generic [ref=f3e119]: 初中二年级
+          - generic [ref=f3e120] [cursor=pointer]:
+            - checkbox "初中三年级" [ref=f3e121]
+            - generic [ref=f3e122]: 初中三年级
+          - generic [ref=f3e123] [cursor=pointer]:
+            - checkbox "高中一年级" [ref=f3e124]
+            - generic [ref=f3e125]: 高中一年级
+          - generic [ref=f3e126] [cursor=pointer]:
+            - checkbox "高中二年级" [ref=f3e127]
+            - generic [ref=f3e128]: 高中二年级
+          - generic [ref=f3e129] [cursor=pointer]:
+            - checkbox "高中三年级" [ref=f3e130]
+            - generic [ref=f3e131]: 高中三年级
+        - paragraph [ref=f3e132]: 勾选的年级表示当前学校开设的年级，未勾选的年级将不会出现在班级管理等相关功能中。
+      - generic [ref=f3e133]:
+        - generic [ref=f3e134]:
+          - generic [ref=f3e135]:
+            - generic [ref=f3e136]: 级
+            - generic [ref=f3e137]:
+              - heading "年级课程配置" [level=2] [ref=f3e138]
+              - paragraph [ref=f3e139]: 按学期和年级配置课程列表，仅显示学校已招收的年级。
+          - button "保存配置" [ref=f3e140] [cursor=pointer]
+        - generic [ref=f3e141]:
+          - combobox [ref=f3e142] [cursor=pointer]
+          - combobox [ref=f3e143] [cursor=pointer]:
+            - option "请先在\"年级管理\"中配置招收年级" [disabled]
+      - generic [ref=f3e145]:
+        - generic [ref=f3e146]:
+          - generic [ref=f3e147]:
+            - generic [ref=f3e148]: 荣
+            - generic [ref=f3e149]:
+              - heading "荣誉类型管理" [level=2] [ref=f3e150]
+              - paragraph [ref=f3e151]: 定义学生荣誉的分类类型，如体育比赛、歌唱比赛等，点击编辑按钮修改。
+          - button "新增荣誉类型" [ref=f3e152] [cursor=pointer]
+        - generic [ref=f3e154]:
+          - generic [ref=f3e155]: 🏆
+          - paragraph [ref=f3e156]: 暂无荣誉类型，点击右上角"新增荣誉类型"创建
+      - generic [ref=f3e157]:
+        - generic [ref=f3e159]:
+          - generic [ref=f3e160]: 师
+          - generic [ref=f3e161]:
+            - heading "班级课程教师" [level=2] [ref=f3e162]
+            - paragraph [ref=f3e163]: 按学期和班级为每门课程分配任课教师，点击编辑按钮通过搜索下拉选择教师。
+        - generic [ref=f3e164]:
+          - combobox [ref=f3e165] [cursor=pointer]
+          - combobox [ref=f3e166] [cursor=pointer]
+          - button "加载" [ref=f3e167] [cursor=pointer]
+        - generic [ref=f3e169]:
+          - generic [ref=f3e170]: 👨‍🏫
+          - paragraph [ref=f3e171]: 请选择学期和班级后点击"加载"查看课程安排
+        - paragraph [ref=f3e172]: 提示：先在"用户管理"页面创建教师账号，再回到这里分配任课教师。

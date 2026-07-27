@@ -1,0 +1,33 @@
+- main [ref=f2e3]:
+  - generic [ref=f2e5]:
+    - img "新实中学" [ref=f2e6]
+    - heading "新实中学" [level=1] [ref=f2e7]
+    - paragraph [ref=f2e8]: 学校班级成绩管理系统
+    - paragraph [ref=f2e9]: 一体化管理后台，联接班级、学生、课程、成绩与成绩单，为教师、班主任、家长提供专业的教育数据服务。
+    - generic [ref=f2e10]:
+      - generic [ref=f2e11]:
+        - generic [ref=f2e12]: 📊
+        - generic [ref=f2e13]: 成绩管理与分析
+      - generic [ref=f2e14]:
+        - generic [ref=f2e15]: ✨
+        - generic [ref=f2e16]: 智能评语与反馈
+      - generic [ref=f2e17]:
+        - generic [ref=f2e18]: 📄
+        - generic [ref=f2e19]: 成绩单自动生成
+    - paragraph [ref=f2e20]: © 2026 新实中学 · All Rights Reserved
+  - generic [ref=f2e22]:
+    - generic [ref=f2e23]:
+      - paragraph [ref=f2e24]: 欢迎回来
+      - heading "登录系统" [level=2] [ref=f2e25]
+      - paragraph [ref=f2e26]: 请输入您的账号和密码
+    - generic [ref=f2e27]:
+      - generic [ref=f2e28]: 登录账号
+      - textbox "登录账号" [active] [ref=f2e30]:
+        - /placeholder: 请输入登录账号
+    - generic [ref=f2e31]:
+      - generic [ref=f2e32]: 密码
+      - generic [ref=f2e33]:
+        - textbox "密码 显示密码" [ref=f2e34]:
+          - /placeholder: 请输入密码
+        - button "显示密码" [ref=f2e35] [cursor=pointer]
+    - button "进入系统" [ref=f2e39] [cursor=pointer]

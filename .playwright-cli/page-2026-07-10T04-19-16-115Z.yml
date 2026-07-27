@@ -1,0 +1,415 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - link "新实中学 新实中学" [ref=f1e5] [cursor=pointer]:
+      - /url: /dashboard
+      - img "新实中学" [ref=f1e6]
+      - generic [ref=f1e7]: 新实中学
+    - navigation [ref=f1e8]:
+      - link "工作台" [ref=f1e9] [cursor=pointer]:
+        - /url: /dashboard
+      - link "基础配置" [ref=f1e10] [cursor=pointer]:
+        - /url: /config
+      - link "用户管理" [ref=f1e11] [cursor=pointer]:
+        - /url: /users
+      - link "班级管理" [ref=f1e12] [cursor=pointer]:
+        - /url: /classes
+      - link "学生管理" [ref=f1e13] [cursor=pointer]:
+        - /url: /students
+      - link "成绩管理" [ref=f1e14] [cursor=pointer]:
+        - /url: /scores
+      - link "成绩单管理" [ref=f1e15] [cursor=pointer]:
+        - /url: /transcripts
+      - link "家长管理" [ref=f1e16] [cursor=pointer]:
+        - /url: /parents
+  - main [ref=f1e18]:
+    - generic [ref=f1e19]:
+      - generic [ref=f1e20]:
+        - paragraph [ref=f1e21]: Xinshi Admin
+        - heading "基础配置" [level=1] [ref=f1e22]
+      - button "系统管理员 ⌄" [ref=f1e25] [cursor=pointer]:
+        - text: 系统管理员
+        - generic [ref=f1e26]: ⌄
+    - generic [ref=f1e27]:
+      - generic [ref=f1e28]:
+        - generic [ref=f1e29]:
+          - paragraph [ref=f1e30]: Configuration
+          - heading "系统配置" [level=1] [ref=f1e31]
+          - paragraph [ref=f1e32]: 管理角色、学期、课程、年级课程和班级任课教师等基础配置。
+        - button "刷新中..." [disabled] [ref=f1e33]
+      - generic [ref=f1e37]:
+        - generic [ref=f1e38]:
+          - generic [ref=f1e39]:
+            - generic [ref=f1e40]: 角
+            - generic [ref=f1e41]:
+              - heading "角色定义" [level=2] [ref=f1e42]
+              - paragraph [ref=f1e43]: 管理系统中的角色编码与名称，如超级管理员、班主任、教师等。
+          - button "新增角色" [ref=f1e44] [cursor=pointer]
+        - generic [ref=f1e45]:
+          - generic [ref=f1e46]:
+            - generic [ref=f1e47]:
+              - generic [ref=f1e48]: 超
+              - generic [ref=f1e49]:
+                - strong [ref=f1e50]: 超级管理员
+                - generic [ref=f1e51]: SUPER_ADMIN
+            - code [ref=f1e52]: SUPER_ADMIN
+          - generic [ref=f1e53]:
+            - generic [ref=f1e54]:
+              - generic [ref=f1e55]: 班
+              - generic [ref=f1e56]:
+                - strong [ref=f1e57]: 班主任
+                - generic [ref=f1e58]: HEAD_TEACHER
+            - code [ref=f1e59]: HEAD_TEACHER
+          - generic [ref=f1e60]:
+            - generic [ref=f1e61]:
+              - generic [ref=f1e62]: 任
+              - generic [ref=f1e63]:
+                - strong [ref=f1e64]: 任课教师
+                - generic [ref=f1e65]: TEACHER
+            - code [ref=f1e66]: TEACHER
+          - generic [ref=f1e67]:
+            - generic [ref=f1e68]:
+              - generic [ref=f1e69]: 学
+              - generic [ref=f1e70]:
+                - strong [ref=f1e71]: 学生家长
+                - generic [ref=f1e72]: PARENT
+            - code [ref=f1e73]: PARENT
+      - generic [ref=f1e74]:
+        - generic [ref=f1e75]:
+          - generic [ref=f1e76]:
+            - generic [ref=f1e77]: 期
+            - generic [ref=f1e78]:
+              - heading "学期管理" [level=2] [ref=f1e79]
+              - paragraph [ref=f1e80]: 定义学年学期信息，包含学期编码、学年、起止日期等。
+          - button "新增学期" [ref=f1e81] [cursor=pointer]
+        - generic [ref=f1e82]:
+          - generic [ref=f1e83]:
+            - generic [ref=f1e84]:
+              - generic [ref=f1e85]: "2"
+              - generic [ref=f1e86]:
+                - strong [ref=f1e87]: 2025-2026 学年第二学期
+                - generic [ref=f1e88]: 2026-02-01 ~ 2026-08-01
+            - generic [ref=f1e89]:
+              - generic [ref=f1e90]: 2025-2026
+              - generic [ref=f1e91]: 2025-2026
+              - button "编辑" [ref=f1e92] [cursor=pointer]
+          - generic [ref=f1e93]:
+            - generic [ref=f1e94]:
+              - generic [ref=f1e95]: "2"
+              - generic [ref=f1e96]:
+                - strong [ref=f1e97]: 2025-2026 学年第一学期
+                - generic [ref=f1e98]: 2025-09-01 ~ 2026-01-31
+            - generic [ref=f1e99]:
+              - generic [ref=f1e100]: 2025-2026-1
+              - generic [ref=f1e101]: 2025-2026
+              - button "编辑" [ref=f1e102] [cursor=pointer]
+      - generic [ref=f1e103]:
+        - generic [ref=f1e104]:
+          - generic [ref=f1e105]:
+            - generic [ref=f1e106]: 科
+            - generic [ref=f1e107]:
+              - heading "课程主数据" [level=2] [ref=f1e108]
+              - paragraph [ref=f1e109]: 定义课程编码、名称、分数范围及启用状态，点击编辑按钮修改。
+          - button "新增课程" [ref=f1e110] [cursor=pointer]
+        - generic [ref=f1e111]:
+          - generic [ref=f1e112]:
+            - generic [ref=f1e115]:
+              - strong [ref=f1e116]: 地理
+              - generic [ref=f1e117]: SUB_GEO · 分值 0-100
+            - generic [ref=f1e118]:
+              - generic [ref=f1e119]: 启用
+              - button "编辑" [ref=f1e120] [cursor=pointer]
+          - generic [ref=f1e121]:
+            - generic [ref=f1e124]:
+              - strong [ref=f1e125]: 历史
+              - generic [ref=f1e126]: SUB_HIST · 分值 0-100
+            - generic [ref=f1e127]:
+              - generic [ref=f1e128]: 启用
+              - button "编辑" [ref=f1e129] [cursor=pointer]
+          - generic [ref=f1e130]:
+            - generic [ref=f1e133]:
+              - strong [ref=f1e134]: 政治
+              - generic [ref=f1e135]: SUB_POLI · 分值 0-100
+            - generic [ref=f1e136]:
+              - generic [ref=f1e137]: 启用
+              - button "编辑" [ref=f1e138] [cursor=pointer]
+          - generic [ref=f1e139]:
+            - generic [ref=f1e142]:
+              - strong [ref=f1e143]: 生物
+              - generic [ref=f1e144]: SUBJECT_BIO · 分值 0-100
+            - generic [ref=f1e145]:
+              - generic [ref=f1e146]: 启用
+              - button "编辑" [ref=f1e147] [cursor=pointer]
+          - generic [ref=f1e148]:
+            - generic [ref=f1e151]:
+              - strong [ref=f1e152]: 化学
+              - generic [ref=f1e153]: SUBJECT_CHEMICAL · 分值 0-100
+            - generic [ref=f1e154]:
+              - generic [ref=f1e155]: 启用
+              - button "编辑" [ref=f1e156] [cursor=pointer]
+          - generic [ref=f1e157]:
+            - generic [ref=f1e160]:
+              - strong [ref=f1e161]: 物理
+              - generic [ref=f1e162]: SBUJECT_PHISIC · 分值 0-100
+            - generic [ref=f1e163]:
+              - generic [ref=f1e164]: 启用
+              - button "编辑" [ref=f1e165] [cursor=pointer]
+          - generic [ref=f1e166]:
+            - generic [ref=f1e169]:
+              - strong [ref=f1e170]: 英语
+              - generic [ref=f1e171]: SUBJ-ENGLISH · 分值 0-150
+            - generic [ref=f1e172]:
+              - generic [ref=f1e173]: 启用
+              - button "编辑" [ref=f1e174] [cursor=pointer]
+          - generic [ref=f1e175]:
+            - generic [ref=f1e178]:
+              - strong [ref=f1e179]: 数学
+              - generic [ref=f1e180]: SUBJ-MATH · 分值 0-150
+            - generic [ref=f1e181]:
+              - generic [ref=f1e182]: 启用
+              - button "编辑" [ref=f1e183] [cursor=pointer]
+          - generic [ref=f1e184]:
+            - generic [ref=f1e187]:
+              - strong [ref=f1e188]: 语文
+              - generic [ref=f1e189]: SUBJ-CHINESE · 分值 0-150
+            - generic [ref=f1e190]:
+              - generic [ref=f1e191]: 启用
+              - button "编辑" [ref=f1e192] [cursor=pointer]
+      - generic [ref=f1e193]:
+        - generic [ref=f1e194]:
+          - generic [ref=f1e195]:
+            - generic [ref=f1e196]: 招
+            - generic [ref=f1e197]:
+              - heading "年级管理" [level=2] [ref=f1e198]
+              - paragraph [ref=f1e199]: 设置学校当前招收哪些年级的学生，勾选后保存即可生效。
+          - button "保存配置" [ref=f1e200] [cursor=pointer]
+        - generic [ref=f1e201]:
+          - generic [ref=f1e202] [cursor=pointer]:
+            - checkbox "小学一年级" [ref=f1e203]
+            - generic [ref=f1e204]: 小学一年级
+          - generic [ref=f1e205] [cursor=pointer]:
+            - checkbox "小学二年级" [ref=f1e206]
+            - generic [ref=f1e207]: 小学二年级
+          - generic [ref=f1e208] [cursor=pointer]:
+            - checkbox "小学三年级" [ref=f1e209]
+            - generic [ref=f1e210]: 小学三年级
+          - generic [ref=f1e211] [cursor=pointer]:
+            - checkbox "小学四年级" [ref=f1e212]
+            - generic [ref=f1e213]: 小学四年级
+          - generic [ref=f1e214] [cursor=pointer]:
+            - checkbox "小学五年级" [ref=f1e215]
+            - generic [ref=f1e216]: 小学五年级
+          - generic [ref=f1e217] [cursor=pointer]:
+            - checkbox "小学六年级" [ref=f1e218]
+            - generic [ref=f1e219]: 小学六年级
+          - generic [ref=f1e220] [cursor=pointer]:
+            - checkbox "初中一年级" [ref=f1e221]
+            - generic [ref=f1e222]: 初中一年级
+          - generic [ref=f1e223] [cursor=pointer]:
+            - checkbox "初中二年级" [ref=f1e224]
+            - generic [ref=f1e225]: 初中二年级
+          - generic [ref=f1e226] [cursor=pointer]:
+            - checkbox "初中三年级" [ref=f1e227]
+            - generic [ref=f1e228]: 初中三年级
+          - generic [ref=f1e229] [cursor=pointer]:
+            - checkbox "高中一年级" [ref=f1e230]
+            - generic [ref=f1e231]: 高中一年级
+          - generic [ref=f1e232] [cursor=pointer]:
+            - checkbox "高中二年级" [ref=f1e233]
+            - generic [ref=f1e234]: 高中二年级
+          - generic [ref=f1e235] [cursor=pointer]:
+            - checkbox "高中三年级" [ref=f1e236]
+            - generic [ref=f1e237]: 高中三年级
+        - paragraph [ref=f1e238]: 勾选的年级表示当前学校开设的年级，未勾选的年级将不会出现在班级管理等相关功能中。
+      - generic [ref=f1e239]:
+        - generic [ref=f1e240]:
+          - generic [ref=f1e241]:
+            - generic [ref=f1e242]: 级
+            - generic [ref=f1e243]:
+              - heading "年级科目配置" [level=2] [ref=f1e244]
+              - paragraph [ref=f1e245]: 按学期和年级配置课程列表，仅显示学校已招收的年级。
+          - button "保存配置" [ref=f1e246] [cursor=pointer]
+        - generic [ref=f1e247]:
+          - combobox [ref=f1e248] [cursor=pointer]:
+            - option "2025-2026 学年第二学期" [selected]
+            - option "2025-2026 学年第一学期"
+          - combobox [ref=f1e249] [cursor=pointer]:
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+            - option "[object Object]年级"
+        - generic [ref=f1e250]:
+          - generic [ref=f1e251] [cursor=pointer]:
+            - checkbox "地理 SUB_GEO" [ref=f1e252]
+            - generic [ref=f1e253]: 地理
+            - generic [ref=f1e254]: SUB_GEO
+          - generic [ref=f1e255] [cursor=pointer]:
+            - checkbox "历史 SUB_HIST" [ref=f1e256]
+            - generic [ref=f1e257]: 历史
+            - generic [ref=f1e258]: SUB_HIST
+          - generic [ref=f1e259] [cursor=pointer]:
+            - checkbox "政治 SUB_POLI" [ref=f1e260]
+            - generic [ref=f1e261]: 政治
+            - generic [ref=f1e262]: SUB_POLI
+          - generic [ref=f1e263] [cursor=pointer]:
+            - checkbox "生物 SUBJECT_BIO" [ref=f1e264]
+            - generic [ref=f1e265]: 生物
+            - generic [ref=f1e266]: SUBJECT_BIO
+          - generic [ref=f1e267] [cursor=pointer]:
+            - checkbox "化学 SUBJECT_CHEMICAL" [ref=f1e268]
+            - generic [ref=f1e269]: 化学
+            - generic [ref=f1e270]: SUBJECT_CHEMICAL
+          - generic [ref=f1e271] [cursor=pointer]:
+            - checkbox "物理 SBUJECT_PHISIC" [ref=f1e272]
+            - generic [ref=f1e273]: 物理
+            - generic [ref=f1e274]: SBUJECT_PHISIC
+          - generic [ref=f1e275] [cursor=pointer]:
+            - checkbox "英语 SUBJ-ENGLISH" [ref=f1e276]
+            - generic [ref=f1e277]: 英语
+            - generic [ref=f1e278]: SUBJ-ENGLISH
+          - generic [ref=f1e279] [cursor=pointer]:
+            - checkbox "数学 SUBJ-MATH" [ref=f1e280]
+            - generic [ref=f1e281]: 数学
+            - generic [ref=f1e282]: SUBJ-MATH
+          - generic [ref=f1e283] [cursor=pointer]:
+            - checkbox "语文 SUBJ-CHINESE" [ref=f1e284]
+            - generic [ref=f1e285]: 语文
+            - generic [ref=f1e286]: SUBJ-CHINESE
+      - generic [ref=f1e287]:
+        - generic [ref=f1e289]:
+          - generic [ref=f1e290]: 师
+          - generic [ref=f1e291]:
+            - heading "班级课程教师" [level=2] [ref=f1e292]
+            - paragraph [ref=f1e293]: 按学期和班级为每门课程分配任课教师，点击编辑按钮通过搜索下拉选择教师。
+        - generic [ref=f1e294]:
+          - combobox [ref=f1e295] [cursor=pointer]:
+            - option "2025-2026 学年第二学期" [selected]
+            - option "2025-2026 学年第一学期"
+          - combobox [ref=f1e296] [cursor=pointer]
+          - button "加载" [ref=f1e297] [cursor=pointer]
+        - generic [ref=f1e299]:
+          - generic [ref=f1e300]: 👨‍🏫
+          - paragraph [ref=f1e301]: 请选择学期和班级后点击"加载"查看课程安排
+        - paragraph [ref=f1e302]: 提示：先在"用户管理"页面创建教师账号，再回到这里分配任课教师。
+      - generic [ref=f1e303]:
+        - generic [ref=f1e304]:
+          - generic [ref=f1e305]:
+            - generic [ref=f1e306]: 荣
+            - generic [ref=f1e307]:
+              - heading "荣誉类型管理" [level=2] [ref=f1e308]
+              - paragraph [ref=f1e309]: 定义学生荣誉的分类类型，如体育比赛、歌唱比赛等，点击编辑按钮修改。
+          - button "新增荣誉类型" [ref=f1e310] [cursor=pointer]
+        - generic [ref=f1e311]:
+          - generic [ref=f1e312]:
+            - generic [ref=f1e315]:
+              - strong [ref=f1e316]: 体育比赛
+              - generic [ref=f1e317]: "SPORTS · 顺序: 1"
+            - generic [ref=f1e318]:
+              - generic [ref=f1e319]: 启用
+              - button "编辑" [ref=f1e320] [cursor=pointer]
+          - generic [ref=f1e321]:
+            - generic [ref=f1e324]:
+              - strong [ref=f1e325]: 歌唱比赛
+              - generic [ref=f1e326]: "SINGING · 顺序: 2"
+            - generic [ref=f1e327]:
+              - generic [ref=f1e328]: 启用
+              - button "编辑" [ref=f1e329] [cursor=pointer]
+          - generic [ref=f1e330]:
+            - generic [ref=f1e333]:
+              - strong [ref=f1e334]: 演讲比赛
+              - generic [ref=f1e335]: "SPEECH · 顺序: 3"
+            - generic [ref=f1e336]:
+              - generic [ref=f1e337]: 启用
+              - button "编辑" [ref=f1e338] [cursor=pointer]
+          - generic [ref=f1e339]:
+            - generic [ref=f1e342]:
+              - strong [ref=f1e343]: 班级评优
+              - generic [ref=f1e344]: "CLASS_EVAL · 顺序: 4"
+            - generic [ref=f1e345]:
+              - generic [ref=f1e346]: 启用
+              - button "编辑" [ref=f1e347] [cursor=pointer]
+          - generic [ref=f1e348]:
+            - generic [ref=f1e351]:
+              - strong [ref=f1e352]: 学校评优
+              - generic [ref=f1e353]: "SCHOOL_EVAL · 顺序: 5"
+            - generic [ref=f1e354]:
+              - generic [ref=f1e355]: 启用
+              - button "编辑" [ref=f1e356] [cursor=pointer]
+          - generic [ref=f1e357]:
+            - generic [ref=f1e360]:
+              - strong [ref=f1e361]: 学校奖学金
+              - generic [ref=f1e362]: "SCHOLARSHIP · 顺序: 6"
+            - generic [ref=f1e363]:
+              - generic [ref=f1e364]: 启用
+              - button "编辑" [ref=f1e365] [cursor=pointer]
+          - generic [ref=f1e366]:
+            - generic [ref=f1e369]:
+              - strong [ref=f1e370]: 课外活动
+              - generic [ref=f1e371]: "EXTRACURRICULAR · 顺序: 7"
+            - generic [ref=f1e372]:
+              - generic [ref=f1e373]: 启用
+              - button "编辑" [ref=f1e374] [cursor=pointer]
+      - generic [ref=f1e375]:
+        - generic [ref=f1e376]:
+          - generic [ref=f1e377]:
+            - generic [ref=f1e378]: 考
+            - generic [ref=f1e379]:
+              - heading "考试类型" [level=2] [ref=f1e380]
+              - paragraph [ref=f1e381]: 定义考试类型，如期中考试、期末考试、月考、联考等，用于成绩分类管理。
+          - button "新增考试类型" [ref=f1e382] [cursor=pointer]
+        - generic [ref=f1e383]:
+          - generic [ref=f1e384]:
+            - generic [ref=f1e387]:
+              - strong [ref=f1e388]: 期中考试
+              - generic [ref=f1e389]: MIDTERM
+            - generic [ref=f1e390]:
+              - generic [ref=f1e391]: "顺序: 1"
+              - generic [ref=f1e392]: 启用
+              - button "编辑" [ref=f1e393] [cursor=pointer]
+          - generic [ref=f1e394]:
+            - generic [ref=f1e397]:
+              - strong [ref=f1e398]: 期末考试
+              - generic [ref=f1e399]: FINAL
+            - generic [ref=f1e400]:
+              - generic [ref=f1e401]: "顺序: 2"
+              - generic [ref=f1e402]: 启用
+              - button "编辑" [ref=f1e403] [cursor=pointer]
+          - generic [ref=f1e404]:
+            - generic [ref=f1e407]:
+              - strong [ref=f1e408]: 月考
+              - generic [ref=f1e409]: MONTHLY
+            - generic [ref=f1e410]:
+              - generic [ref=f1e411]: "顺序: 3"
+              - generic [ref=f1e412]: 启用
+              - button "编辑" [ref=f1e413] [cursor=pointer]
+          - generic [ref=f1e414]:
+            - generic [ref=f1e417]:
+              - strong [ref=f1e418]: 联考
+              - generic [ref=f1e419]: JOINT
+            - generic [ref=f1e420]:
+              - generic [ref=f1e421]: "顺序: 4"
+              - generic [ref=f1e422]: 启用
+              - button "编辑" [ref=f1e423] [cursor=pointer]
+          - generic [ref=f1e424]:
+            - generic [ref=f1e427]:
+              - strong [ref=f1e428]: 模拟考试
+              - generic [ref=f1e429]: MOCK
+            - generic [ref=f1e430]:
+              - generic [ref=f1e431]: "顺序: 5"
+              - generic [ref=f1e432]: 启用
+              - button "编辑" [ref=f1e433] [cursor=pointer]
+          - generic [ref=f1e434]:
+            - generic [ref=f1e437]:
+              - strong [ref=f1e438]: 课堂测验
+              - generic [ref=f1e439]: QUIZ
+            - generic [ref=f1e440]:
+              - generic [ref=f1e441]: "顺序: 6"
+              - generic [ref=f1e442]: 启用
+              - button "编辑" [ref=f1e443] [cursor=pointer]

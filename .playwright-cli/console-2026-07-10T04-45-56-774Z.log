@@ -1,0 +1,8 @@
+[    1553ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ http://120.25.105.57/api/menus:0
+[    7562ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ http://120.25.105.57/api/menus:0
+[   30631ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://120.25.105.57/users:0
+[   31238ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://120.25.105.57/users:0
+[   37835ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ http://120.25.105.57/api/transcripts:0
+[   39873ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ http://120.25.105.57/profile:0
+[   39873ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://120.25.105.57/profile:0
+[   39873ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "new-password"): (More info: https://goo.gl/9p2vKq) %o @ http://120.25.105.57/profile:0
