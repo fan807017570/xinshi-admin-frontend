@@ -149,12 +149,12 @@
       </article>
     </div>
 
-    <div v-if="!loading && totalPages > 1" class="pagination class-pagination">
+    <div v-if="!loading && total > 0" class="pagination class-pagination">
       <div class="pagination-left">
         <span class="pagination-info">共 {{ total }} 条，第 {{ page.current }}/{{ totalPages }} 页</span>
         <label class="pagination-size-label">
           每页
-          <select v-model.number="page.size" class="pagination-size-select" @change="changePageSize">
+          <select v-model.number="page.size" class="pagination-size-select">
             <option :value="10">10</option>
             <option :value="20">20</option>
             <option :value="50">50</option>
@@ -163,7 +163,7 @@
           条
         </label>
       </div>
-      <div class="pagination-buttons">
+      <div v-if="totalPages > 1" class="pagination-buttons">
         <button class="button ghost sm" type="button" :disabled="page.current <= 1" @click="goPage(page.current - 1)">上一页</button>
         <button
           v-for="num in pageNumbers"
@@ -343,10 +343,35 @@
                   <option value="">选择科目</option>
                   <option v-for="sub in availableSubjects" :key="sub.id" :value="sub.id">{{ sub.subjectName || sub.name }}</option>
                 </select>
-                <select v-model="newTeacherId" class="course-add-select">
-                  <option value="">任课老师（可选）</option>
-                  <option v-for="teacher in allTeachers" :key="teacher.id" :value="teacher.id">{{ teacher.realName || teacher.name }}</option>
-                </select>
+                <div class="teacher-search teacher-search--inline">
+                  <input
+                    v-model="addTeacherKeyword"
+                    class="config-input"
+                    autocomplete="off"
+                    placeholder="搜索老师..."
+                    @input="onAddTeacherInput()"
+                    @focus="doSearchAddTeachers()"
+                  />
+                  <div v-if="addTeacherSearchLoading" class="teacher-search-loading">搜索中...</div>
+                  <div v-if="newTeacherId" class="teacher-search-selected teacher-search-selected--inline">
+                    <span class="teacher-search-selected-name">{{ addTeacherKeyword || '已选择' }}</span>
+                    <button class="teacher-search-clear" type="button" title="清除选择" @click="clearAddTeacherSelection">×</button>
+                  </div>
+                  <ul v-if="addTeacherSearchRows.length > 0" class="teacher-search-list">
+                    <li
+                      v-for="teacher in addTeacherSearchRows"
+                      :key="teacher.id"
+                      class="teacher-search-item"
+                      @mousedown.prevent="selectAddTeacher(teacher)"
+                    >
+                      <strong>{{ teacher.realName || teacher.name }}</strong>
+                      <span>{{ teacher.loginName }}</span>
+                    </li>
+                  </ul>
+                  <ul v-else-if="addTeacherKeyword.trim() && !addTeacherSearchLoading && !newTeacherId" class="teacher-search-list">
+                    <li class="teacher-search-empty">未找到匹配的老师</li>
+                  </ul>
+                </div>
                 <button class="button primary sm" type="button" @click="addClassSubject" style="flex-shrink:0;">添加</button>
               </div>
               <p v-if="!availableSubjects.length" style="color:#94a3b8; font-size:12px; margin-top:6px;">没有可添加的科目</p>
@@ -369,10 +394,36 @@
             <button class="button ghost sm" type="button" @click="closeAssignModal">关闭</button>
           </div>
           <div style="margin-top: 16px;">
-            <select v-model="assignTeacherId">
-              <option value="">请选择任课老师</option>
-              <option v-for="teacher in allTeachers" :key="teacher.id" :value="teacher.id">{{ teacher.realName || teacher.name }}</option>
-            </select>
+            <div class="teacher-search">
+              <input
+                v-model="assignTeacherKeyword"
+                class="config-input"
+                autocomplete="off"
+                placeholder="搜索教师姓名..."
+                @input="onAssignTeacherInput()"
+                @focus="doSearchAssignTeachers()"
+              />
+              <div v-if="assignTeacherSearchLoading" class="teacher-search-loading">搜索中...</div>
+              <div v-if="assignTeacherId" class="teacher-search-selected">
+                <span class="teacher-search-selected-name">{{ assignTeacherKeyword || '已选择教师' }}</span>
+                <small>ID: {{ assignTeacherId }}</small>
+                <button class="teacher-search-clear" type="button" title="清除选择" @click="clearAssignTeacherSelection">×</button>
+              </div>
+              <ul v-if="assignTeacherSearchRows.length > 0" class="teacher-search-list">
+                <li
+                  v-for="teacher in assignTeacherSearchRows"
+                  :key="teacher.id"
+                  class="teacher-search-item"
+                  @mousedown.prevent="selectAssignTeacher(teacher)"
+                >
+                  <strong>{{ teacher.realName || teacher.name }}</strong>
+                  <span>{{ teacher.loginName }}</span>
+                </li>
+              </ul>
+              <ul v-else-if="assignTeacherKeyword.trim() && !assignTeacherSearchLoading && !assignTeacherId" class="teacher-search-list">
+                <li class="teacher-search-empty">未找到匹配的老师</li>
+              </ul>
+            </div>
           </div>
           <div class="modal-actions" style="margin-top: 16px;">
             <button class="button ghost" type="button" @click="closeAssignModal">取消</button>
@@ -401,7 +452,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import * as schoolApi from '../api/school'
 import { useAuthStore } from '../stores/auth'
 
@@ -528,6 +579,18 @@ const assignModalVisible = ref(false)
 const assignClassSubjectId = ref<string | number>('')
 const assignSubjectName = ref('')
 const assignTeacherId = ref('')
+
+// Teacher search state for "设教师" modal
+const assignTeacherKeyword = ref('')
+const assignTeacherSearchRows = ref<AnyRow[]>([])
+const assignTeacherSearchLoading = ref(false)
+let assignTeacherSearchTimer: ReturnType<typeof setTimeout> | null = null
+
+// Teacher search state for "添加课程" inline form
+const addTeacherKeyword = ref('')
+const addTeacherSearchRows = ref<AnyRow[]>([])
+const addTeacherSearchLoading = ref(false)
+let addTeacherSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 // --- Error modal ---
 const errorModalVisible = ref(false)
@@ -735,7 +798,7 @@ function resetQuery() {
 }
 
 function goPage(num: number) { page.current = num; search(false) }
-function changePageSize() { page.current = 1; search(false) }
+watch(() => page.size, () => { page.current = 1; search(false) })
 
 // --- Create/Edit modal ---
 function resetForm() {
@@ -946,12 +1009,79 @@ function showError(msg: string) {
   errorModalVisible.value = true
 }
 
+// --- Teacher search helpers ---
+async function doSearchAssignTeachers(keyword = assignTeacherKeyword.value) {
+  if (assignTeacherSearchTimer) clearTimeout(assignTeacherSearchTimer)
+  assignTeacherSearchLoading.value = true
+  assignTeacherSearchTimer = setTimeout(async () => {
+    try {
+      assignTeacherSearchRows.value = rows(await call('searchTeachers', keyword.trim()))
+    } catch {
+      assignTeacherSearchRows.value = []
+    } finally {
+      assignTeacherSearchLoading.value = false
+    }
+  }, 300)
+}
+
+function onAssignTeacherInput() {
+  if (assignTeacherId.value) assignTeacherId.value = ''
+  doSearchAssignTeachers()
+}
+
+function selectAssignTeacher(teacher: AnyRow) {
+  assignTeacherId.value = teacher.id
+  assignTeacherKeyword.value = teacher.realName || teacher.name || teacher.loginName || ''
+  assignTeacherSearchRows.value = []
+}
+
+function clearAssignTeacherSelection() {
+  assignTeacherId.value = ''
+  assignTeacherKeyword.value = ''
+  doSearchAssignTeachers()
+}
+
+async function doSearchAddTeachers(keyword = addTeacherKeyword.value) {
+  if (addTeacherSearchTimer) clearTimeout(addTeacherSearchTimer)
+  addTeacherSearchLoading.value = true
+  addTeacherSearchTimer = setTimeout(async () => {
+    try {
+      addTeacherSearchRows.value = rows(await call('searchTeachers', keyword.trim()))
+    } catch {
+      addTeacherSearchRows.value = []
+    } finally {
+      addTeacherSearchLoading.value = false
+    }
+  }, 300)
+}
+
+function onAddTeacherInput() {
+  if (newTeacherId.value) newTeacherId.value = ''
+  doSearchAddTeachers()
+}
+
+function selectAddTeacher(teacher: AnyRow) {
+  newTeacherId.value = teacher.id
+  addTeacherKeyword.value = teacher.realName || teacher.name || teacher.loginName || ''
+  addTeacherSearchRows.value = []
+}
+
+function clearAddTeacherSelection() {
+  newTeacherId.value = ''
+  addTeacherKeyword.value = ''
+  doSearchAddTeachers()
+}
+
 // --- Assign teacher ---
 function openAssignTeacher(cs: AnyRow) {
   assignClassSubjectId.value = cs.id
   assignSubjectName.value = cs.subjectName
   assignTeacherId.value = cs.teacherUserId || ''
+  assignTeacherKeyword.value = cs.teacherName || ''
+  assignTeacherSearchRows.value = []
+  assignTeacherSearchLoading.value = false
   assignModalVisible.value = true
+  doSearchAssignTeachers()
 }
 
 function closeAssignModal() {
@@ -959,6 +1089,8 @@ function closeAssignModal() {
   assignClassSubjectId.value = ''
   assignSubjectName.value = ''
   assignTeacherId.value = ''
+  assignTeacherKeyword.value = ''
+  assignTeacherSearchRows.value = []
 }
 
 async function saveAssignTeacher() {

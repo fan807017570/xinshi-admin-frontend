@@ -29,8 +29,19 @@ const staticLabels: Record<string, string> = {
   classes: '班级管理',
   students: '学生管理',
   scores: '成绩管理',
-  transcripts: '成绩单',
+  transcripts: '成绩单管理',
   parents: '家长端'
+}
+
+const menuIcons: Record<string, string> = {
+  dashboard: '🏠',
+  config: '⚙️',
+  users: '👥',
+  classes: '🏫',
+  students: '🎓',
+  scores: '📊',
+  transcripts: '📄',
+  parents: '👪'
 }
 
 const menuOrder = ['config', 'users', 'classes', 'students', 'scores', 'transcripts', 'parents']
@@ -152,13 +163,17 @@ onUnmounted(() => {
         </span>
       </RouterLink>
       <nav class="nav">
-        <RouterLink to="/dashboard">🏠 工作台</RouterLink>
+        <RouterLink to="/dashboard">
+          <span class="nav-icon">{{ menuIcons['dashboard'] }}</span>
+          <span>工作台</span>
+        </RouterLink>
         <RouterLink
           v-for="menu in menuOrder.filter((item) => userMenus.includes(item))"
           :key="menu"
           :to="`/${menu}`"
         >
-          {{ menuLabel(menu) }}
+          <span class="nav-icon">{{ menuIcons[menu] || '📌' }}</span>
+          <span>{{ menuLabel(menu) }}</span>
         </RouterLink>
       </nav>
     </aside>

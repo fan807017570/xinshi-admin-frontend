@@ -32,10 +32,14 @@
       </div>
     </section>
 
-    <form v-if="canManageTranscripts" class="card-form compact generate-form" @submit.prevent="submitGenerate">
-      <input v-model.trim="query.generatedByUserId" placeholder="生成人用户ID（可选）" />
-      <button class="button primary" type="submit">生成成绩单</button>
-    </form>
+    <section v-if="canManageTranscripts" class="panel">
+      <h2>生成成绩单</h2>
+      <p class="lead" style="margin-bottom: 14px">使用上方筛选条件中的学期、班级和学生信息生成成绩单。</p>
+      <form class="card-form compact generate-form" @submit.prevent="submitGenerate">
+        <input v-model.trim="query.generatedByUserId" placeholder="生成人用户ID（可选）" />
+        <button class="button primary" type="submit">生成成绩单</button>
+      </form>
+    </section>
     <section v-else class="panel">
       <h2>只读模式</h2>
       <p class="lead">当前账号只能查看和下载成绩单，不能生成新的成绩单。</p>
@@ -254,8 +258,8 @@ const pageNumbers = computed(() => {
 
 async function loadBase() {
   const [termRes, classRes, examRes] = await Promise.all([
-    call('listAcademicTerms'),
-    call('listClasses', { page: 1, size: 200 }),
+    call('listAcademicTerms').catch(() => []),
+    call('listClasses', { page: 1, size: 200 }).catch(() => []),
     call('listExamTypes').catch(() => [])
   ])
   terms.value = rows(termRes)
@@ -331,6 +335,18 @@ function changePageSize() {
 }
 
 async function submitGenerate() {
+  if (!query.academicTermId) {
+    error.value = '请先选择学期'
+    return
+  }
+  if (!query.classId) {
+    error.value = '请先选择班级'
+    return
+  }
+  if (!query.studentId) {
+    error.value = '请先选择学生'
+    return
+  }
   generateVisible.value = true
   generating.value = true
   generateError.value = ''

@@ -74,6 +74,8 @@
       </div>
     </div>
 
+    <DownloadProgress :visible="downloadVisible" :percent="downloadPercent" @cancel="cancelDownload" />
+
     <Teleport to="body">
       <div v-if="transcriptVisible" class="modal-mask" @click.self="closeTranscript">
         <div class="modal-card" role="dialog" aria-modal="true">
@@ -140,6 +142,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import DownloadProgress from '../components/DownloadProgress.vue'
 import * as schoolApi from '../api/school'
 
 type AnyRow = Record<string, any>
@@ -158,6 +161,9 @@ const transcriptResult = ref<AnyRow | null>(null)
 const transcriptStudent = ref<AnyRow | null>(null)
 const transcriptTermId = ref('')
 const transcriptExamTypeId = ref('')
+const downloadVisible = ref(false)
+const downloadPercent = ref(0)
+const downloadAbortController = ref<AbortController | null>(null)
 const terms = ref<AnyRow[]>([])
 const examTypes = ref<AnyRow[]>([])
 const query = reactive({ classId: '', status: '', keyword: '' })
@@ -324,9 +330,18 @@ function closeTranscript() {
 async function downloadTranscriptResult() {
   if (!transcriptResult.value) return
   transcriptDownloading.value = true
+  downloadPercent.value = 0
+  downloadVisible.value = true
+  const controller = new AbortController()
+  downloadAbortController.value = controller
   try {
-    const res = await call('downloadTranscript', transcriptResult.value.id)
-    const blob = res instanceof Blob ? res : new Blob([res], { type: 'application/pdf' })
+    const res = await call('downloadTranscript', transcriptResult.value.id, {
+      signal: controller.signal,
+      onProgress: (percent: number) => {
+        downloadPercent.value = percent
+      }
+    })
+    const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data ?? res], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -336,10 +351,18 @@ async function downloadTranscriptResult() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   } catch (err) {
-    transcriptError.value = err instanceof Error ? err.message : '下载失败'
+    if (!(err instanceof DOMException && err.name === 'AbortError')) {
+      transcriptError.value = err instanceof Error ? err.message : '下载失败'
+    }
   } finally {
+    downloadVisible.value = false
     transcriptDownloading.value = false
+    downloadAbortController.value = null
   }
+}
+
+function cancelDownload() {
+  downloadAbortController.value?.abort()
 }
 
 onMounted(async () => {

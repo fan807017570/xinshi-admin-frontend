@@ -41,6 +41,7 @@ const teacherModalError = ref('')
 const teacherKeyword = ref('')
 const teacherSearchRows = ref<any[]>([])
 const teacherSearchLoading = ref(false)
+let teacherSearchTimer: ReturnType<typeof setTimeout> | null = null
 const teacherAssignItem = ref<any | null>(null)
 const selectedTeacherId = ref<string | number | null>(null)
 const gradeSubjectModalVisible = ref(false)
@@ -361,14 +362,17 @@ function statusLabel(item: any) {
 }
 
 async function searchTeacherOptions(keyword = teacherKeyword.value) {
+  if (teacherSearchTimer) clearTimeout(teacherSearchTimer)
   teacherSearchLoading.value = true
-  try {
-    teacherSearchRows.value = rows(await searchTeachers(keyword.trim()))
-  } catch {
-    teacherSearchRows.value = []
-  } finally {
-    teacherSearchLoading.value = false
-  }
+  teacherSearchTimer = setTimeout(async () => {
+    try {
+      teacherSearchRows.value = rows(await searchTeachers(keyword.trim()))
+    } catch {
+      teacherSearchRows.value = []
+    } finally {
+      teacherSearchLoading.value = false
+    }
+  }, 300)
 }
 
 function openTeacherModal(item: any) {
@@ -376,8 +380,10 @@ function openTeacherModal(item: any) {
   selectedTeacherId.value = item.teacherUserId ?? null
   teacherKeyword.value = item.teacherName || ''
   teacherModalError.value = ''
-  teacherSearchRows.value = teachers.value
+  teacherSearchRows.value = []
   teacherModalVisible.value = true
+  // Always fetch fresh teacher data from API (not stale cache)
+  searchTeacherOptions()
 }
 
 function closeTeacherModal() {
@@ -411,7 +417,16 @@ function selectTeacher(teacher: any) {
 function clearSelectedTeacher() {
   selectedTeacherId.value = null
   teacherKeyword.value = ''
-  teacherSearchRows.value = teachers.value
+  // Fetch fresh data from API instead of showing stale cache
+  searchTeacherOptions()
+}
+
+function onTeacherKeywordInput() {
+  // When user starts typing, clear the current selection so they can search freely
+  if (selectedTeacherId.value) {
+    selectedTeacherId.value = null
+  }
+  searchTeacherOptions()
 }
 
 onMounted(loadData)
@@ -871,7 +886,7 @@ onMounted(loadData)
               class="config-input"
               autocomplete="off"
               placeholder="搜索教师姓名..."
-              @input="searchTeacherOptions()"
+              @input="onTeacherKeywordInput()"
               @focus="searchTeacherOptions()"
             />
             <div v-if="teacherSearchLoading" class="teacher-search-loading">搜索中...</div>
