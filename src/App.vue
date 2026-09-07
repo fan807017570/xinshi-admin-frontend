@@ -18,7 +18,7 @@ const maxSidebarWidth = 480
 const sidebarStorageKey = 'xinshi-sidebar-width'
 const isResizing = ref(false)
 
-const showShell = computed(() => route.path !== '/login' && auth.isAuthenticated)
+const showShell = computed(() => route.path !== '/login' && route.meta.layout !== 'h5' && auth.isAuthenticated)
 const userMenus = computed(() => auth.user?.menus ?? [])
 const sidebarWidth = ref(readSidebarWidth())
 
@@ -29,6 +29,7 @@ const staticLabels: Record<string, string> = {
   classes: '班级管理',
   students: '学生管理',
   scores: '成绩管理',
+  classStats: '班级成绩统计',
   transcripts: '成绩单管理',
   parents: '家长端'
 }
@@ -40,11 +41,12 @@ const menuIcons: Record<string, string> = {
   classes: '🏫',
   students: '🎓',
   scores: '📊',
+  classStats: '📈',
   transcripts: '📄',
   parents: '👪'
 }
 
-const menuOrder = ['config', 'users', 'classes', 'students', 'scores', 'transcripts', 'parents']
+const menuOrder = ['config', 'users', 'classes', 'students', 'scores', 'classStats', 'transcripts', 'parents']
 
 function readSidebarWidth() {
   const value = Number(localStorage.getItem(sidebarStorageKey))

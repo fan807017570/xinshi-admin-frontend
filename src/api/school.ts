@@ -108,8 +108,8 @@ export const createStudent = (payload: unknown) => http.post('/students', payloa
 export const updateStudent = (id: string | number, payload: unknown) => http.put(`/students/${id}`, payload).then((res) => res.data)
 export const deleteStudent = (id: string | number) => http.delete(`/students/${id}`).then((res) => res.data)
 
-export const listStudentResults = (params: QueryParams = {}) =>
-  http.get('/student-results', { params }).then((res) => res.data)
+export const listStudentResults = (params: QueryParams = {}, signal?: AbortSignal) =>
+  http.get('/student-results', { params, signal }).then((res) => res.data)
 export const listTeacherScoreEntries = (params: QueryParams = {}) =>
   http.get('/teacher-score-entries', { params }).then((res) => res.data)
 export const saveStudentResult = (payload: unknown) => http.post('/student-results', payload).then((res) => res.data)
