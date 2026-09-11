@@ -72,6 +72,8 @@ export const updateAcademicTerm = (id: string | number, payload: unknown) =>
   http.put(`/academic-terms/${id}`, payload).then((res) => res.data)
 
 export const listClasses = (params: QueryParams = {}) => http.get('/classes', { params }).then((res) => res.data)
+export const listClassFilterOptions = (params: QueryParams = {}) =>
+  http.get('/classes/filter-options', { params }).then((res) => res.data)
 export const searchTeachers = (keyword: string) =>
   http.get('/teachers/search', { params: { keyword } }).then((res) => res.data)
 export const createClass = (payload: unknown) => http.post('/classes', payload).then((res) => res.data)
@@ -96,8 +98,11 @@ export interface SaveGradeSubjectsPayload {
 
 export const saveGradeSubjects = (payload: SaveGradeSubjectsPayload) =>
   http.put('/grade-subjects', payload).then((res) => res.data)
-export const listClassSubjects = (academicTermId: string | number, classId: string | number) =>
-  http.get('/class-subjects', { params: { academicTermId, classId } }).then((res) => res.data)
+export const listClassSubjects = (
+  academicTermId: string | number,
+  classId: string | number,
+  mode?: 'teacher' | 'headTeacher'
+) => http.get('/class-subjects', { params: { academicTermId, classId, mode } }).then((res) => res.data)
 export const updateClassSubjectTeacher = (id: string | number, teacherUserId: string | number | null) =>
   http.put(`/class-subjects/${id}/teacher`, { teacherUserId }).then((res) => res.data)
 export const createClassSubject = (payload: unknown) => http.post('/class-subjects', payload).then((res) => res.data)
@@ -166,9 +171,11 @@ export const deleteAchievement = (id: string | number) => http.delete(`/achievem
 // 场景 A：导出单科成绩模版
 export const exportCourseResultTemplate = (params: {
   academicTermId: number
+  gradeSession: string
+  gradeLevel: number
   classId: number
   subjectId: number
-  examTypeId?: number
+  examTypeId: number
 }) =>
   http.get('/course-results/export-template', {
     params,
@@ -186,9 +193,40 @@ export const importCourseResults = (file: File, enableAiPolish = false) => {
   }).then((res) => res.data)
 }
 
+export interface CourseImportContext {
+  academicTermId: number
+  gradeSession: string
+  gradeLevel: number
+  classId: number
+  subjectId: number
+  examTypeId: number
+}
+
+export interface ParentContentImportContext {
+  academicTermId: number
+  gradeSession: string
+  gradeLevel: number
+  classId: number
+}
+
+export const precheckCourseResults = (file: File, context: CourseImportContext) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return http.post('/course-results/import/precheck', fd, {
+    params: context,
+    timeout: 120000
+  }).then((res) => res.data)
+}
+
+export const commitCourseResults = (importToken: string) =>
+  http.post('/course-results/import/commit', { importToken }, { timeout: 120000 })
+    .then((res) => res.data)
+
 // 场景 B：导出综合评价与荣誉模版
 export const exportHeadTeacherTemplate = (params: {
   academicTermId: number
+  gradeSession: string
+  gradeLevel: number
   classId: number
 }) =>
   http.get('/head-teacher/export-template', {
@@ -206,3 +244,20 @@ export const importHeadTeacherData = (file: File, enableAiPolish = false) => {
     timeout: 120000
   }).then((res) => res.data)
 }
+
+export const precheckHeadTeacherData = (
+  file: File,
+  context: ParentContentImportContext,
+  enableAiPolish = false
+) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return http.post('/head-teacher/import/precheck', fd, {
+    params: { ...context, enableAiPolish: String(enableAiPolish) },
+    timeout: 120000
+  }).then((res) => res.data)
+}
+
+export const commitHeadTeacherData = (importToken: string) =>
+  http.post('/head-teacher/import/commit', { importToken }, { timeout: 120000 })
+    .then((res) => res.data)

@@ -36,25 +36,49 @@
             <button class="button ghost" type="button" @click="resetTeacherQuery">重置</button>
           </div>
         </div>
-        <form class="card-form compact" @submit.prevent="searchTeacherEntries">
-          <select v-model="teacherQuery.academicTermId" @change="searchTeacherEntries">
+        <form class="card-form compact score-query-form" @submit.prevent="searchTeacherEntries">
+          <select id="teacher-term" v-model="teacherQuery.academicTermId" @change="onTeacherTermChange">
             <option value="">学期</option>
             <option v-for="term in terms" :key="term.id" :value="String(term.id)">{{ term.termName || term.name }}</option>
           </select>
-          <select v-model="teacherQuery.classId" @change="searchTeacherEntries">
-            <option value="">全部班级</option>
+          <select id="teacher-session" v-model="teacherQuery.gradeSession" @change="onTeacherSessionChange">
+            <option value="">届次</option>
+            <option v-for="session in gradeSessions" :key="session" :value="session">{{ session }}届</option>
+          </select>
+          <select id="teacher-grade" v-model="teacherQuery.gradeLevel" @change="onTeacherGradeChange">
+            <option value="">年级</option>
+            <option v-for="level in availableGradeLevels(teacherQuery.gradeSession)" :key="level" :value="String(level)">{{ gradeLevelLabel(level) }}</option>
+          </select>
+          <select id="teacher-class" v-model="teacherQuery.classId" @change="onTeacherClassChange">
+            <option value="">班级</option>
             <option v-for="klass in classes" :key="klass.id" :value="String(klass.id)">{{ klass.className || klass.name }}</option>
           </select>
-          <select v-model="teacherQuery.subjectId" @change="searchTeacherEntries">
-            <option value="">全部科目</option>
-            <option v-for="subject in (teacherMode ? teacherSubjects : subjects)" :key="subject.id" :value="String(subject.id)">{{ subject.subjectName || subject.name }}</option>
+          <select id="teacher-subject" v-model="teacherQuery.subjectId" @change="clearTeacherResults">
+            <option value="">科目</option>
+            <option v-for="subject in teacherSubjects" :key="subject.subjectId || subject.id" :value="String(subject.subjectId || subject.id)">{{ subject.subjectName || subject.name }}</option>
           </select>
-          <select v-model="teacherQuery.examTypeId" @change="searchTeacherEntries">
+          <select id="teacher-exam" v-model="teacherQuery.examTypeId" @change="clearTeacherResults">
             <option value="">考试类型</option>
             <option v-for="type in examTypes" :key="type.id" :value="String(type.id)">{{ type.examTypeName || type.name }}</option>
           </select>
-          <input v-model.trim="teacherKeyword" type="search" placeholder="输入学生姓名或学号自动查询" @input="onTeacherKeywordInput" />
+          <input class="score-query-keyword" v-model.trim="teacherKeyword" type="search" placeholder="输入学生姓名或学号自动查询" @input="onTeacherKeywordInput" />
+          <button class="button primary score-query-submit" type="submit">查询</button>
         </form>
+        <p v-if="teacherContextError" class="context-error">{{ teacherContextError }}</p>
+      </section>
+
+      <section class="panel batch-panel">
+        <div class="panel-head">
+          <div>
+            <h2>批量处理</h2>
+            <p class="hint">先完整选择学期、届次、年级、班级、科目和考试类型，再导出或导入成绩。</p>
+            <p class="batch-context">当前：{{ teacherContextSummary }}</p>
+          </div>
+          <div class="action-group">
+            <button class="button" type="button" :disabled="exportLoading === 'teacher'" @click="exportTeacherTemplate">{{ exportLoading === 'teacher' ? '导出中...' : '导出成绩模版' }}</button>
+            <button class="button primary" type="button" @click="showTeacherImportDialog">导入成绩</button>
+          </div>
+        </div>
       </section>
 
       <!-- Score Entries Table -->
@@ -63,10 +87,6 @@
           <div>
             <h2>我的成绩录入</h2>
             <p class="hint">未录入的成绩会显示为"待录入"，点击"录入"即可维护成绩和老师评价。支持通过 Excel 模版批量导入导出。</p>
-          </div>
-          <div class="action-group">
-            <button class="button" type="button" @click="exportTeacherTemplate">导出模版</button>
-            <button class="button primary" type="button" @click="showTeacherImportDialog">导入成绩</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -151,7 +171,11 @@
             </label>
           </div>
           <div class="pagination-buttons">
+            <button class="button sm" type="button" :disabled="teacherPage.current <= 1" @click="goTeacherPage(teacherPage.current - 1)">上一页</button>
             <button v-for="num in teacherPageNumbers" :key="num" class="button sm" :class="{ primary: num === teacherPage.current }" type="button" @click="goTeacherPage(num)">{{ num }}</button>
+            <button class="button sm" type="button" :disabled="teacherPage.current >= teacherPageCount" @click="goTeacherPage(teacherPage.current + 1)">下一页</button>
+            <label class="pagination-jump">跳至 <input v-model.number="teacherPage.jump" type="number" min="1" :max="teacherPageCount" @keydown.enter.prevent="jumpTeacherPage" /> 页</label>
+            <button class="button sm" type="button" @click="jumpTeacherPage">跳转</button>
           </div>
         </div>
       </section>
@@ -166,35 +190,39 @@
             <h2>查询条件</h2>
             <p class="hint">选择学期和班级后可导出/导入综合评价与荣誉模版。选择学生后查看个人详情。</p>
           </div>
-          <div class="action-group">
-            <button class="button" type="button" @click="exportHeadTeacherTemplate">导出评语模版</button>
-            <button class="button" type="button" @click="exportHeadTeacherGradeTemplate">导出成绩模版</button>
-            <button class="button primary" type="button" @click="showHeadTeacherImportDialog">导入</button>
-            <button class="button ghost" type="button" @click="resetHeadTeacherQuery">重置</button>
-          </div>
+          <div class="action-group"><button class="button ghost" type="button" @click="resetHeadTeacherQuery">重置</button></div>
         </div>
-        <form class="card-form compact" @submit.prevent="searchHeadTeacherScores">
-          <select v-model="headTeacherQuery.academicTermId" @change="onHeadTeacherTermChange">
+        <form class="card-form compact score-query-form" @submit.prevent="searchHeadTeacherScores">
+          <select id="head-term" v-model="headTeacherQuery.academicTermId" @change="onHeadTeacherTermChange">
             <option value="">学期</option>
             <option v-for="term in terms" :key="term.id" :value="String(term.id)">{{ term.termName || term.name }}</option>
           </select>
-          <select v-model="headTeacherQuery.classId" @change="onHeadTeacherClassChange">
+          <select id="head-session" v-model="headTeacherQuery.gradeSession" @change="onHeadTeacherSessionChange">
+            <option value="">届次</option>
+            <option v-for="session in gradeSessions" :key="session" :value="session">{{ session }}届</option>
+          </select>
+          <select id="head-grade" v-model="headTeacherQuery.gradeLevel" @change="onHeadTeacherGradeChange">
+            <option value="">年级</option>
+            <option v-for="level in availableGradeLevels(headTeacherQuery.gradeSession)" :key="level" :value="String(level)">{{ gradeLevelLabel(level) }}</option>
+          </select>
+          <select id="head-class" v-model="headTeacherQuery.classId" @change="onHeadTeacherClassChange">
             <option value="">班级</option>
             <option v-for="klass in classes" :key="klass.id" :value="String(klass.id)">{{ klass.className || klass.name }}</option>
           </select>
-          <select v-model="headTeacherGradeSubjectId">
+          <select id="head-subject" v-model="headTeacherGradeSubjectId">
             <option value="">成绩科目（导出成绩模版用）</option>
-            <option v-for="subject in subjects" :key="subject.id" :value="String(subject.id)">{{ subject.subjectName || subject.name }}</option>
+            <option v-for="subject in headTeacherSubjects" :key="subject.subjectId || subject.id" :value="String(subject.subjectId || subject.id)">{{ subject.subjectName || subject.name }}</option>
           </select>
-          <select v-model="headTeacherQuery.examTypeId" @change="searchHeadTeacherScores">
+          <select id="head-exam" v-model="headTeacherQuery.examTypeId" @change="clearHeadTeacherDetails">
             <option value="">考试类型</option>
             <option v-for="type in examTypes" :key="type.id" :value="String(type.id)">{{ type.examTypeName || type.name }}</option>
           </select>
-          <div class="student-search">
+          <div class="student-search score-query-keyword">
             <input
               v-model.trim="studentKeyword"
               type="search"
-              placeholder="输入学生姓名模糊搜索，按回车选择第一个"
+              :disabled="!headTeacherQuery.classId"
+              :placeholder="headTeacherQuery.classId ? '输入学生姓名或学号，按回车选择第一个' : '请先选择班级'"
               @input="searchStudents"
               @focus="searchStudents"
               @keydown.enter.prevent="selectFirstStudent"
@@ -212,7 +240,25 @@
               <p v-if="!studentSuggestions.length">没有匹配的学生</p>
             </div>
           </div>
+          <button class="button primary score-query-submit" type="submit">查询</button>
         </form>
+        <p v-if="headTeacherContextError" class="context-error">{{ headTeacherContextError }}</p>
+      </section>
+
+      <section class="panel batch-panel">
+        <div class="panel-head">
+          <div>
+            <h2>批量处理</h2>
+            <p class="hint">成绩与评语荣誉使用独立模版和导入入口，避免文件结构被错误解析。</p>
+            <p class="batch-context">当前：{{ headTeacherContextSummary }}</p>
+          </div>
+          <div class="action-group">
+            <button class="button" type="button" :disabled="exportLoading === 'headScore'" @click="exportHeadTeacherGradeTemplate">{{ exportLoading === 'headScore' ? '导出中...' : '导出成绩模版' }}</button>
+            <button class="button primary" type="button" @click="showHeadTeacherScoreImportDialog">导入成绩</button>
+            <button class="button" type="button" :disabled="exportLoading === 'parent'" @click="exportHeadTeacherTemplate">{{ exportLoading === 'parent' ? '导出中...' : '导出评语与荣誉模版' }}</button>
+            <button class="button primary" type="button" @click="showHeadTeacherImportDialog">导入评语与荣誉</button>
+          </div>
+        </div>
       </section>
 
       <!-- Student Selected: Stats + Scores -->
@@ -243,8 +289,8 @@
             </div>
             <div>
               <span class="metric-label">总分</span>
-              <strong>{{ headTeacherTotalScore.toFixed(2) }}</strong>
-              <span class="metric-foot">全部科目合计</span>
+              <strong>{{ headTeacherQuery.examTypeId ? headTeacherTotalScore.toFixed(2) : '-' }}</strong>
+              <span class="metric-foot">{{ headTeacherQuery.examTypeId ? '当前考试全部科目合计' : '选择考试类型后统计' }}</span>
             </div>
             <div>
               <span class="metric-label">课程数</span>
@@ -422,23 +468,23 @@
               </div>
             </div>
             <div class="score-form-grid">
-              <label>
+              <label class="score-field-subject">
                 <span>科目</span>
-                <select v-model="scoreForm.subjectId" :disabled="scoreForm.isEdit">
+                <select v-model="scoreForm.subjectId" :disabled="scoreForm.isEdit" @change="onScoreSubjectChange">
                   <option value="">请选择科目</option>
                   <option v-for="cs in classSubjectOptions" :key="cs.subjectId || cs.id" :value="String(cs.subjectId || cs.id)">
                     {{ cs.subjectName || cs.name }}（{{ cs.minScore ?? 0 }}-{{ cs.maxScore ?? 100 }}分）
                   </option>
                 </select>
               </label>
-              <label>
+              <label class="score-field-exam">
                 <span>考试类型</span>
                 <select v-model="scoreForm.examTypeId">
                   <option value="">请选择考试类型（可选）</option>
                   <option v-for="type in examTypes" :key="type.id" :value="String(type.id)">{{ type.examTypeName || type.name }}</option>
                 </select>
               </label>
-              <label>
+              <label class="score-field-value">
                 <span>成绩</span>
                 <input v-model.number="scoreForm.score" type="number" :min="scoreForm.minScore" :max="scoreForm.maxScore" step="0.01" />
                 <small>有效范围：{{ scoreForm.minScore }} - {{ scoreForm.maxScore }}</small>
@@ -581,74 +627,71 @@
     <!-- ===== IMPORT DIALOG ===== -->
     <Teleport to="body">
       <div v-if="importDialogVisible" class="modal-backdrop" @click.self="closeImportDialog">
-        <section class="modal-card" role="dialog" aria-modal="true" style="max-width: 480px;">
+        <section class="modal-card import-modal" role="dialog" aria-modal="true">
           <div class="modal-head">
             <h2>{{ importDialogTitle }}</h2>
             <button class="button ghost sm" type="button" @click="closeImportDialog">关闭</button>
           </div>
-          <div style="display:grid; gap:16px;">
-            <!-- AI polish toggle -->
-            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding: 10px 14px; background:#f8fafc; border-radius:10px;">
-              <input type="checkbox" v-model="importEnableAiPolish" style="width:18px; height:18px;" />
-              <div>
-                <strong style="font-size:14px; color:#0f172a;">AI 润色评语</strong>
-                <small style="display:block; color:#64748b; margin-top:2px;">启用后自动优化评语和荣誉内容的文字表达</small>
-              </div>
+          <div class="import-content">
+            <div class="import-steps">
+              <span :class="{ active: importStep >= 1 }">1 选择上下文</span>
+              <span :class="{ active: importStep >= 2 }">2 预校验</span>
+              <span :class="{ active: importStep >= 3 }">3 确认导入</span>
+            </div>
+
+            <div class="import-context-grid">
+              <label class="import-field-term"><span>学期</span><select id="import-term" v-model="importContext.academicTermId" @change="onImportTermChange"><option value="">请选择学期</option><option v-for="term in terms" :key="term.id" :value="String(term.id)">{{ term.termName || term.name }}</option></select><small v-if="importFieldErrors.academicTermId">{{ importFieldErrors.academicTermId }}</small></label>
+              <label class="import-field-session"><span>届次</span><select id="import-session" v-model="importContext.gradeSession" @change="onImportSessionChange"><option value="">请选择届次</option><option v-for="session in gradeSessions" :key="session" :value="session">{{ session }}届</option></select><small v-if="importFieldErrors.gradeSession">{{ importFieldErrors.gradeSession }}</small></label>
+              <label class="import-field-grade"><span>年级</span><select id="import-grade" v-model="importContext.gradeLevel" @change="onImportGradeChange"><option value="">请选择年级</option><option v-for="level in availableGradeLevels(importContext.gradeSession)" :key="level" :value="String(level)">{{ gradeLevelLabel(level) }}</option></select><small v-if="importFieldErrors.gradeLevel">{{ importFieldErrors.gradeLevel }}</small></label>
+              <label class="import-field-class"><span>班级</span><select id="import-class" v-model="importContext.classId" @change="onImportClassChange"><option value="">请选择班级</option><option v-for="klass in importClasses" :key="klass.id" :value="String(klass.id)">{{ klass.className || klass.name }}</option></select><small v-if="importFieldErrors.classId">{{ importFieldErrors.classId }}</small></label>
+              <label v-if="isCourseImport" class="import-field-subject"><span>科目</span><select id="import-subject" v-model="importContext.subjectId" @change="invalidateImportPrecheck"><option value="">请选择科目</option><option v-for="subject in importSubjects" :key="subject.subjectId || subject.id" :value="String(subject.subjectId || subject.id)">{{ subject.subjectName || subject.name }}</option></select><small v-if="importFieldErrors.subjectId">{{ importFieldErrors.subjectId }}</small></label>
+              <label v-if="isCourseImport" class="import-field-exam"><span>考试类型</span><select id="import-exam" v-model="importContext.examTypeId" @change="invalidateImportPrecheck"><option value="">请选择考试类型</option><option v-for="type in examTypes" :key="type.id" :value="String(type.id)">{{ type.examTypeName || type.name }}</option></select><small v-if="importFieldErrors.examTypeId">{{ importFieldErrors.examTypeId }}</small></label>
+            </div>
+
+            <label v-if="!isCourseImport" class="ai-toggle">
+              <input type="checkbox" v-model="importEnableAiPolish" @change="invalidateImportPrecheck" />
+              <div><strong>AI 润色评语</strong><small>预校验时自动优化总体评价、优点和改进点的文字表达</small></div>
             </label>
 
-            <!-- Error display -->
-            <div v-if="importError" class="import-error-banner">
-              <span>⚠️ {{ importError }}</span>
-            </div>
+            <div v-if="importError" class="import-error-banner"><span>⚠️ {{ importError }}</span></div>
 
-            <!-- File selection -->
             <div>
-              <p style="font-size:13px; color:#475569; margin-bottom:8px; font-weight:600;">选择 Excel 文件（.xlsx）</p>
-              <div style="display:flex; gap:8px; align-items:center;">
+              <p class="import-file-label">选择 Excel 文件（.xlsx）</p>
+              <div class="import-file-row">
                 <button class="button" type="button" @click="importFileInput?.click()">选择文件</button>
-                <span v-if="importSelectedFile" style="font-size:13px; color:#334155; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ importSelectedFile.name }}</span>
-                <span v-else style="font-size:13px; color:#94a3b8;">未选择文件</span>
-                <input
-                  ref="importFileInput"
-                  type="file"
-                  accept=".xlsx"
-                  @change="onImportFileSelected"
-                  style="display:none"
-                />
+                <span v-if="importSelectedFile" class="import-file-name">{{ importSelectedFile.name }}</span>
+                <span v-else class="import-file-empty">未选择文件</span>
+                <input ref="importFileInput" type="file" accept=".xlsx" @change="onImportFileSelected" style="display:none" />
               </div>
+              <small v-if="importFieldErrors.file" class="field-error">{{ importFieldErrors.file }}</small>
             </div>
 
-            <!-- Loading -->
-            <p v-if="importLoading" style="text-align:center; color:#64748b; margin:0;">⏳ 正在导入，请稍候...</p>
+            <p v-if="importLoading" class="import-loading">⏳ {{ importStep === 3 ? '正在提交，文件将整体成功或整体回滚...' : '正在解析并预校验文件...' }}</p>
 
-            <!-- Result -->
             <div v-if="importResult" class="import-result-card">
-              <p class="import-result-title">导入完成</p>
+              <p class="import-result-title">{{ importCommitted ? '导入完成' : '预校验结果' }}</p>
               <div class="import-result-grid">
-                <div><span class="metric-label">总行数</span><strong>{{ importResult.total }}</strong></div>
-                <div><span class="metric-label">成功</span><strong style="color:#16a34a;">{{ importResult.success }}</strong></div>
-                <div><span class="metric-label">跳过</span><strong style="color:#64748b;">{{ importResult.skipped }}</strong></div>
-                <div><span class="metric-label">失败</span><strong style="color:#dc2626;">{{ importResult.failed }}</strong></div>
-                <div v-if="importResult.aiPolished > 0"><span class="metric-label">AI 润色</span><strong style="color:#0f766e;">{{ importResult.aiPolished }} 条</strong></div>
+                <div><span class="metric-label">总行数</span><strong>{{ importResult.total || 0 }}</strong></div>
+                <div v-if="importCommitted"><span class="metric-label">成功</span><strong class="result-success">{{ importResult.success || 0 }}</strong></div>
+                <div v-else><span class="metric-label">预计新增</span><strong class="result-success">{{ importResult.creates || 0 }}</strong></div>
+                <div v-if="!importCommitted"><span class="metric-label">预计更新</span><strong class="result-update">{{ importResult.updates || 0 }}</strong></div>
+                <div><span class="metric-label">跳过</span><strong>{{ importResult.skipped || 0 }}</strong></div>
+                <div><span class="metric-label">错误</span><strong class="result-error">{{ importResult.errorCount ?? importResult.failed ?? 0 }}</strong></div>
+                <div v-if="importResult.aiPolished > 0"><span class="metric-label">AI 润色</span><strong>{{ importResult.aiPolished }} 条</strong></div>
               </div>
-              <div v-if="importResult.errors && importResult.errors.length" style="margin-top:12px;">
-                <p style="font-size:12px; font-weight:700; color:#dc2626; margin-bottom:6px;">失败详情：</p>
+              <div v-if="importResult.errors && importResult.errors.length" class="import-error-list">
+                <div class="error-list-head"><p>错误详情：</p><button class="button ghost sm" type="button" @click="downloadImportErrors">下载完整错误清单</button></div>
                 <div v-for="(err, idx) in importResult.errors.slice(0, 20)" :key="idx" class="import-error-item">
-                  第{{ err.row }}行 {{ err.studentName }}：{{ err.reason }}
+                  {{ err.row ? `第${err.row}行` : '模版上下文' }} {{ err.studentNo || '' }} {{ err.studentName || '' }}：{{ err.reason }}
                 </div>
-                <p v-if="importResult.errors.length > 20" style="font-size:11px; color:#64748b; margin-top:4px;">... 还有 {{ importResult.errors.length - 20 }} 条错误未显示</p>
+                <p v-if="importResult.errors.length > 20" class="import-more-errors">... 还有 {{ importResult.errors.length - 20 }} 条错误未显示</p>
               </div>
             </div>
 
-            <!-- Actions -->
-            <div style="display:flex; gap:8px; justify-content:flex-end;">
-              <button class="button ghost" type="button" @click="closeImportDialog">取消</button>
-              <button
-                class="button primary"
-                type="button"
-                :disabled="!importSelectedFile || importLoading"
-                @click="doImport"
-              >{{ importLoading ? '导入中...' : '开始导入' }}</button>
+            <div class="import-actions">
+              <button class="button ghost" type="button" @click="closeImportDialog">{{ importCommitted ? '关闭' : '取消' }}</button>
+              <button v-if="!importCommitted" class="button" type="button" :disabled="importLoading" @click="precheckImport">{{ importLoading && importStep !== 3 ? '预校验中...' : '预校验' }}</button>
+              <button v-if="!importCommitted" class="button primary" type="button" :disabled="!importToken || importLoading || Number(importResult?.errorCount || 0) > 0" @click="commitImport">{{ importLoading && importStep === 3 ? '提交中...' : '确认导入' }}</button>
             </div>
           </div>
         </section>
@@ -694,9 +737,6 @@ const teacherMode = computed(() => {
 
 function switchToTeacher() {
   workspaceTab.value = 'teacher'
-  // Clear head-teacher-specific state
-  headTeacherQuery.studentId = ''
-  studentKeyword.value = ''
   headTeacherScoreRows.value = []
   overallComments.value = []
   achievements.value = []
@@ -705,8 +745,6 @@ function switchToTeacher() {
 
 function switchToHeadTeacher() {
   workspaceTab.value = 'headTeacher'
-  // Clear teacher-specific state
-  teacherKeyword.value = ''
   teacherScoreRows.value = []
   teacherTotal.value = 0
   loadPage()
@@ -720,6 +758,64 @@ const classes = ref<AnyRow[]>([])
 const subjects = ref<AnyRow[]>([])
 const examTypes = ref<AnyRow[]>([])
 const honorTypes = ref<AnyRow[]>([])
+const classFilterOptions = ref<AnyRow>({ gradeSessions: [], gradeLevels: [], gradeOptions: [], combinations: [] })
+const exportLoading = ref<'' | 'teacher' | 'headScore' | 'parent'>('')
+const teacherContextError = ref('')
+const headTeacherContextError = ref('')
+
+const gradeSessions = computed<string[]>(() => classFilterOptions.value.gradeSessions || [])
+
+function availableGradeLevels(gradeSession: string) {
+  const combinations = classFilterOptions.value.combinations || []
+  const levels = gradeSession
+    ? combinations.filter((item: AnyRow) => item.gradeSession === gradeSession).map((item: AnyRow) => Number(item.gradeLevel))
+    : (classFilterOptions.value.gradeLevels || []).map((item: any) => Number(item))
+  return Array.from(new Set<number>(levels)).sort((a, b) => a - b)
+}
+
+function gradeLevelLabel(level: number) {
+  const gradeOption = (classFilterOptions.value.gradeOptions || [])
+    .find((item: AnyRow) => Number(item.gradeLevel) === Number(level))
+  if (gradeOption?.gradeName) return String(gradeOption.gradeName)
+  const combination = (classFilterOptions.value.combinations || [])
+    .find((item: AnyRow) => Number(item.gradeLevel) === Number(level) && item.gradeName)
+  return combination?.gradeName ? String(combination.gradeName) : `${level}年级`
+}
+
+function optionName(options: AnyRow[], id: string, idFields: string[], nameFields: string[]) {
+  if (!id) return '未选择'
+  const option = options.find((item) => idFields.some((field) => String(item[field] ?? '') === String(id)))
+  if (!option) return id
+  const field = nameFields.find((nameField) => option[nameField])
+  return field ? String(option[field]) : id
+}
+
+function contextSummary(context: AnyRow, subjectId = '') {
+  const term = optionName(terms.value, context.academicTermId, ['id'], ['termName', 'name'])
+  const gradeSession = context.gradeSession ? `${context.gradeSession}届` : '届次未选择'
+  const grade = context.gradeLevel ? gradeLevelLabel(Number(context.gradeLevel)) : '年级未选择'
+  const klass = optionName(classes.value, context.classId, ['id'], ['className', 'name'])
+  const parts = [term, gradeSession, grade, klass]
+  if (subjectId || context.subjectId !== undefined) {
+    parts.push(optionName(
+      [...teacherSubjects.value, ...headTeacherSubjects.value],
+      subjectId || context.subjectId,
+      ['subjectId', 'id'],
+      ['subjectName', 'name']))
+    parts.push(optionName(examTypes.value, context.examTypeId, ['id'], ['examTypeName', 'name']))
+  }
+  return parts.join(' / ')
+}
+
+const teacherContextSummary = computed(() => contextSummary(teacherQuery))
+const headTeacherContextSummary = computed(() => contextSummary({
+  ...headTeacherQuery,
+  subjectId: headTeacherGradeSubjectId.value
+}))
+
+function currentMode(): 'teacher' | 'headTeacher' {
+  return teacherMode.value ? 'teacher' : 'headTeacher'
+}
 
 // ---- Helpers ----
 const payload = (res: any) => res?.data?.data ?? res?.data ?? res ?? {}
@@ -748,18 +844,21 @@ function formatScoreRange(row: AnyRow) {
 const teacherScoreRows = ref<AnyRow[]>([])
 const teacherSubjects = ref<AnyRow[]>([])
 const teacherTotal = ref(0)
-const teacherQuery = reactive({ academicTermId: '', classId: '', subjectId: '', examTypeId: '' })
+const teacherQuery = reactive({ academicTermId: '', gradeSession: '', gradeLevel: '', classId: '', subjectId: '', examTypeId: '' })
 const teacherKeyword = ref('')
-const teacherPage = reactive({ current: 1, size: 20 })
+const teacherPage = reactive({ current: 1, size: 20, jump: 1 })
 let teacherKeywordTimer: ReturnType<typeof setTimeout> | null = null
 
+const teacherPageCount = computed(() => Math.max(1, Math.ceil(teacherTotal.value / teacherPage.size)))
 const teacherPageNumbers = computed(() => {
-  const count = Math.max(1, Math.ceil(teacherTotal.value / teacherPage.size))
-  return Array.from({ length: Math.min(count, 7) }, (_, i) => i + 1)
+  const count = teacherPageCount.value
+  const start = Math.max(1, Math.min(teacherPage.current - 3, count - 6))
+  const end = Math.min(count, start + 6)
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index)
 })
 
 function teacherRowKey(row: AnyRow) {
-  return `${row.classSubjectId || ''}_${row.studentId || ''}_${row.examTypeId || ''}_${row.id || Math.random()}`
+  return `${row.classSubjectId || ''}_${row.studentId || ''}_${row.examTypeId || ''}_${row.id || 'new'}`
 }
 
 function onTeacherKeywordInput() {
@@ -770,6 +869,7 @@ function onTeacherKeywordInput() {
 async function searchTeacherEntries() {
   globalError.value = ''
   teacherPage.current = 1
+  teacherPage.jump = 1
   await loadTeacherEntries()
 }
 
@@ -787,29 +887,82 @@ async function loadTeacherEntries() {
     params.mode = workspaceTab.value
   }
   const res = await call('listTeacherScoreEntries', params)
+  teacherTotal.value = totalOf(res)
+  const pageCount = Math.max(1, Math.ceil(teacherTotal.value / teacherPage.size))
+  if (teacherPage.current > pageCount) {
+    teacherPage.current = pageCount
+    teacherPage.jump = pageCount
+    await loadTeacherEntries()
+    return
+  }
+  const selectedExam = examTypes.value.find(
+    (item) => String(item.id) === String(teacherQuery.examTypeId))
   teacherScoreRows.value = (rows(res) as AnyRow[]).map((row: AnyRow) => ({
     ...row,
-    hasScore: row.score != null && row.score !== '' && Number(row.score) > 0
+    examTypeId: row.examTypeId ?? teacherQuery.examTypeId,
+    examTypeName: row.examTypeName
+      || selectedExam?.examTypeName || selectedExam?.name || '',
+    hasScore: row.score != null && row.score !== ''
   }))
-  teacherTotal.value = totalOf(res)
+}
 
-  // 提取任课老师所教的科目（去重）
-  const seen = new Map<string, AnyRow>()
-  for (const r of teacherScoreRows.value) {
-    if (r.subjectId && !seen.has(String(r.subjectId))) {
-      seen.set(String(r.subjectId), { id: r.subjectId, subjectName: r.subjectName || r.subject, minScore: r.minScore, maxScore: r.maxScore })
-    }
-  }
-  teacherSubjects.value = Array.from(seen.values())
+function clearTeacherResults() {
+  teacherPage.current = 1
+  teacherPage.jump = 1
+  teacherScoreRows.value = []
+  teacherTotal.value = 0
 }
 
 function goTeacherPage(num: number) {
-  teacherPage.current = num
+  teacherPage.current = Math.max(1, Math.min(num, teacherPageCount.value))
+  teacherPage.jump = teacherPage.current
   loadTeacherEntries()
 }
 
-function resetTeacherQuery() {
-  teacherQuery.academicTermId = ''
+function jumpTeacherPage() {
+  goTeacherPage(Number(teacherPage.jump) || 1)
+}
+
+async function onTeacherTermChange() {
+  clearTeacherResults()
+  teacherQuery.subjectId = ''
+  teacherSubjects.value = []
+  if (teacherQuery.classId) await loadTeacherSubjects()
+}
+
+async function onTeacherSessionChange() {
+  clearTeacherResults()
+  teacherQuery.gradeLevel = ''
+  teacherQuery.classId = ''
+  teacherQuery.subjectId = ''
+  teacherSubjects.value = []
+  persistLastSession('teacher', teacherQuery.gradeSession)
+  await loadScopedClasses(teacherQuery)
+}
+
+async function onTeacherGradeChange() {
+  clearTeacherResults()
+  teacherQuery.classId = ''
+  teacherQuery.subjectId = ''
+  teacherSubjects.value = []
+  await loadScopedClasses(teacherQuery)
+}
+
+async function onTeacherClassChange() {
+  clearTeacherResults()
+  teacherQuery.subjectId = ''
+  await loadTeacherSubjects()
+}
+
+async function loadTeacherSubjects() {
+  teacherSubjects.value = await loadClassSubjectsFor(
+    teacherQuery.academicTermId, teacherQuery.classId, 'teacher')
+}
+
+async function resetTeacherQuery() {
+  teacherQuery.academicTermId = defaultTermId()
+  teacherQuery.gradeSession = defaultGradeSession('teacher')
+  teacherQuery.gradeLevel = ''
   teacherQuery.classId = ''
   teacherQuery.subjectId = ''
   teacherQuery.examTypeId = ''
@@ -817,6 +970,9 @@ function resetTeacherQuery() {
   teacherPage.current = 1
   teacherScoreRows.value = []
   teacherTotal.value = 0
+  teacherSubjects.value = []
+  teacherContextError.value = ''
+  await loadScopedClasses(teacherQuery)
 }
 
 // ---- Head Teacher Workbench State ----
@@ -828,11 +984,13 @@ const downloadingTranscript = ref(false)
 const downloadVisible = ref(false)
 const downloadPercent = ref(0)
 const downloadAbortController = ref<AbortController | null>(null)
-const headTeacherQuery = reactive({ academicTermId: '', classId: '', examTypeId: '', studentId: '' })
+const headTeacherQuery = reactive({ academicTermId: '', gradeSession: '', gradeLevel: '', classId: '', examTypeId: '', studentId: '' })
 const headTeacherGradeSubjectId = ref('')
+const headTeacherSubjects = ref<AnyRow[]>([])
 const studentKeyword = ref('')
 const studentSuggestions = ref<AnyRow[]>([])
 const allStudents = ref<AnyRow[]>([])
+let studentKeywordTimer: ReturnType<typeof setTimeout> | null = null
 
 const selectedStudent = computed(() => {
   if (!headTeacherQuery.studentId) return null
@@ -849,16 +1007,20 @@ const headTeacherTotalScore = computed(() => {
 })
 
 function headTeacherRowKey(row: AnyRow) {
-  return `${row.subjectId || ''}_${row.examTypeId || ''}_${row.id || Math.random()}`
+  return `${row.subjectId || ''}_${row.examTypeId || ''}_${row.id || 'new'}`
 }
 
-async function searchStudents() {
-  // 用户重新输入时清除已选学生，恢复搜索下拉
+function searchStudents() {
   headTeacherQuery.studentId = ''
-  if (!studentKeyword.value) {
+  if (!headTeacherQuery.classId || !studentKeyword.value) {
     studentSuggestions.value = []
     return
   }
+  if (studentKeywordTimer) clearTimeout(studentKeywordTimer)
+  studentKeywordTimer = setTimeout(() => performStudentSearch(), 350)
+}
+
+async function performStudentSearch() {
   const params: AnyRow = { keyword: studentKeyword.value, page: 1, size: 8 }
   if (headTeacherQuery.classId) params.classId = Number(headTeacherQuery.classId)
   try {
@@ -884,8 +1046,35 @@ function selectStudent(student: AnyRow) {
 
 async function onHeadTeacherTermChange() {
   headTeacherQuery.studentId = ''
+  headTeacherGradeSubjectId.value = ''
+  headTeacherSubjects.value = []
   studentKeyword.value = ''
-  await searchHeadTeacherScores()
+  clearHeadTeacherDetails()
+  if (headTeacherQuery.classId) await loadHeadTeacherSubjects()
+}
+
+async function onHeadTeacherSessionChange() {
+  headTeacherQuery.gradeLevel = ''
+  headTeacherQuery.classId = ''
+  headTeacherQuery.studentId = ''
+  headTeacherGradeSubjectId.value = ''
+  headTeacherSubjects.value = []
+  allStudents.value = []
+  studentKeyword.value = ''
+  clearHeadTeacherDetails()
+  persistLastSession('headTeacher', headTeacherQuery.gradeSession)
+  await loadScopedClasses(headTeacherQuery)
+}
+
+async function onHeadTeacherGradeChange() {
+  headTeacherQuery.classId = ''
+  headTeacherQuery.studentId = ''
+  headTeacherGradeSubjectId.value = ''
+  headTeacherSubjects.value = []
+  allStudents.value = []
+  studentKeyword.value = ''
+  clearHeadTeacherDetails()
+  await loadScopedClasses(headTeacherQuery)
 }
 
 async function onHeadTeacherClassChange() {
@@ -893,15 +1082,33 @@ async function onHeadTeacherClassChange() {
   studentKeyword.value = ''
   if (headTeacherQuery.classId) {
     try {
-      const res = await call('listStudents', { classId: Number(headTeacherQuery.classId), page: 1, size: 500 })
-      allStudents.value = rows(res)
+      const [studentRes] = await Promise.all([
+        call('listStudents', { classId: Number(headTeacherQuery.classId), page: 1, size: 500 }),
+        loadHeadTeacherSubjects()
+      ])
+      allStudents.value = rows(studentRes)
     } catch {
       allStudents.value = []
+      headTeacherSubjects.value = []
     }
   } else {
     allStudents.value = []
+    headTeacherSubjects.value = []
   }
-  await searchHeadTeacherScores()
+  headTeacherGradeSubjectId.value = ''
+  clearHeadTeacherDetails()
+}
+
+async function loadHeadTeacherSubjects() {
+  headTeacherSubjects.value = await loadClassSubjectsFor(
+    headTeacherQuery.academicTermId, headTeacherQuery.classId, 'headTeacher')
+}
+
+function clearHeadTeacherDetails() {
+  headTeacherScoreRows.value = []
+  overallComments.value = []
+  achievements.value = []
+  headTeacherTranscript.value = null
 }
 
 async function searchHeadTeacherScores() {
@@ -981,8 +1188,10 @@ async function loadHeadTeacherTranscript() {
   }
 }
 
-function resetHeadTeacherQuery() {
-  headTeacherQuery.academicTermId = ''
+async function resetHeadTeacherQuery() {
+  headTeacherQuery.academicTermId = defaultTermId()
+  headTeacherQuery.gradeSession = defaultGradeSession('headTeacher')
+  headTeacherQuery.gradeLevel = ''
   headTeacherQuery.classId = ''
   headTeacherQuery.examTypeId = ''
   headTeacherQuery.studentId = ''
@@ -992,6 +1201,10 @@ function resetHeadTeacherQuery() {
   overallComments.value = []
   achievements.value = []
   headTeacherTranscript.value = null
+  headTeacherGradeSubjectId.value = ''
+  headTeacherSubjects.value = []
+  headTeacherContextError.value = ''
+  await loadScopedClasses(headTeacherQuery)
 }
 
 async function downloadHeadTeacherTranscript() {
@@ -1096,7 +1309,7 @@ async function openScoreModal(row: AnyRow | null) {
     scoreForm.studentName = row.studentName || selectedStudent.value?.studentName || selectedStudent.value?.name || ''
     scoreForm.className = row.className || selectedStudent.value?.className || ''
     scoreForm.subjectId = String(row.subjectId || '')
-    scoreForm.examTypeId = String(row.examTypeId || '')
+    scoreForm.examTypeId = String(row.examTypeId || teacherQuery.examTypeId || headTeacherQuery.examTypeId || '')
     scoreForm.score = Number(row.score || 0)
     scoreForm.minScore = Number(row.minScore ?? 0)
     scoreForm.maxScore = Number(row.maxScore ?? 100)
@@ -1127,14 +1340,9 @@ async function openScoreModal(row: AnyRow | null) {
   }
   // 加载科目下拉选项：任课老师用已任教科目列表，班主任/管理员从 API 加载班级全部课程
   if (teacherMode.value && teacherSubjects.value.length > 0) {
-    classSubjectOptions.value = teacherSubjects.value.map(s => ({
-      subjectId: s.id, subjectName: s.subjectName, minScore: s.minScore, maxScore: s.maxScore
-    }))
-  } else if (teacherMode.value && subjects.value.length > 0) {
-    // 任课老师无任教课程数据时回退到全部科目列表
-    classSubjectOptions.value = subjects.value.map(s => ({
-      subjectId: s.id, subjectName: s.subjectName || s.name, minScore: s.minScore ?? 0, maxScore: s.maxScore ?? 100
-    }))
+    classSubjectOptions.value = teacherSubjects.value.map(s => ({ ...s }))
+  } else if (teacherMode.value) {
+    classSubjectOptions.value = []
   } else {
     const classId = scoreForm.classId || headTeacherQuery.classId
     const termId = scoreForm.academicTermId || headTeacherQuery.academicTermId
@@ -1151,6 +1359,14 @@ function closeScoreModal() {
   scoreModalError.value = ''
 }
 
+function onScoreSubjectChange() {
+  const selected = classSubjectOptions.value.find(
+    (item) => String(item.subjectId || item.id) === String(scoreForm.subjectId))
+  scoreForm.classSubjectId = selected?.id || ''
+  scoreForm.minScore = Number(selected?.minScore ?? 0)
+  scoreForm.maxScore = Number(selected?.maxScore ?? 100)
+}
+
 async function submitScore() {
   scoreModalError.value = ''
   if (scoreForm.score == null || scoreForm.score === '') {
@@ -1159,6 +1375,10 @@ async function submitScore() {
   }
   if (!scoreForm.studentId) {
     scoreModalError.value = '请选择学生'
+    return
+  }
+  if (!scoreForm.subjectId) {
+    scoreModalError.value = '请选择科目'
     return
   }
   const body: AnyRow = {
@@ -1231,7 +1451,6 @@ async function submitOverallComment() {
     academicTermId: (headTeacherQuery.academicTermId || defaultTermId()) ? Number(headTeacherQuery.academicTermId || defaultTermId()) : undefined,
     classId: headTeacherQuery.classId ? Number(headTeacherQuery.classId) : undefined,
     studentId: Number(headTeacherQuery.studentId),
-    evaluatorUserId: auth.user?.id ? Number(auth.user.id) : undefined,
     overallComment: overallCommentForm.overallComment || undefined,
     strengths: overallCommentForm.strengths || undefined,
     improvementPoints: overallCommentForm.improvementPoints || undefined
@@ -1356,41 +1575,74 @@ const importResult = ref<any>(null)
 const importError = ref('')
 const importSelectedFile = ref<File | null>(null)
 const importFileInput = ref<HTMLInputElement | null>(null)
-const importScene = ref<'teacher' | 'headTeacher'>('teacher')
+const importScene = ref<'course' | 'parent'>('course')
+const importSourceMode = ref<'teacher' | 'headTeacher'>('teacher')
+const importStep = ref(1)
+const importToken = ref('')
+const importCommitted = ref(false)
+const importClasses = ref<AnyRow[]>([])
+const importSubjects = ref<AnyRow[]>([])
+const importFieldErrors = reactive<AnyRow>({})
+const importContext = reactive({
+  academicTermId: '', gradeSession: '', gradeLevel: '', classId: '', subjectId: '', examTypeId: ''
+})
+const isCourseImport = computed(() => importScene.value === 'course')
 
 function showTeacherImportDialog() {
-  if (!teacherQuery.academicTermId) { errorStore.show('请先选择学期'); return }
-  if (!teacherQuery.classId) { errorStore.show('请先选择班级'); return }
-  if (!teacherQuery.subjectId) { errorStore.show('请先选择科目'); return }
-  importScene.value = 'teacher'
-  importDialogTitle.value = '导入单科成绩'
-  importEnableAiPolish.value = false
-  importResult.value = null
-  importError.value = ''
-  importSelectedFile.value = null
-  importLoading.value = false
-  importDialogVisible.value = true
+  openImportDialog('course', 'teacher', teacherQuery, '导入单科成绩')
+}
+
+function showHeadTeacherScoreImportDialog() {
+  openImportDialog('course', 'headTeacher', {
+    ...headTeacherQuery,
+    subjectId: headTeacherGradeSubjectId.value
+  }, '导入单科成绩')
 }
 
 function showHeadTeacherImportDialog() {
-  if (!headTeacherQuery.academicTermId) { errorStore.show('请先选择学期'); return }
-  if (!headTeacherQuery.classId) { errorStore.show('请先选择班级'); return }
-  importScene.value = 'headTeacher'
-  importDialogTitle.value = '导入综合评价与荣誉'
+  openImportDialog('parent', 'headTeacher', headTeacherQuery, '导入评语与荣誉')
+}
+
+async function openImportDialog(
+  scene: 'course' | 'parent',
+  sourceMode: 'teacher' | 'headTeacher',
+  source: AnyRow,
+  title: string
+) {
+  importScene.value = scene
+  importSourceMode.value = sourceMode
+  importDialogTitle.value = title
+  importContext.academicTermId = source.academicTermId || defaultTermId()
+  importContext.gradeSession = source.gradeSession || defaultGradeSession(sourceMode)
+  importContext.gradeLevel = source.gradeLevel || ''
+  importContext.classId = source.classId || ''
+  importContext.subjectId = source.subjectId || ''
+  importContext.examTypeId = source.examTypeId || ''
   importEnableAiPolish.value = false
+  importSelectedFile.value = null
+  clearImportState()
+  importDialogVisible.value = true
+  await loadImportClasses()
+  if (importContext.classId) await loadImportSubjects()
+}
+
+function clearImportState() {
   importResult.value = null
   importError.value = ''
-  importSelectedFile.value = null
   importLoading.value = false
-  importDialogVisible.value = true
+  importToken.value = ''
+  importStep.value = 1
+  importCommitted.value = false
+  Object.keys(importFieldErrors).forEach((key) => delete importFieldErrors[key])
 }
 
 function closeImportDialog() {
   importDialogVisible.value = false
-  importResult.value = null
-  importError.value = ''
   importSelectedFile.value = null
-  importLoading.value = false
+  importClasses.value = []
+  importSubjects.value = []
+  if (importFileInput.value) importFileInput.value.value = ''
+  clearImportState()
 }
 
 function onImportFileSelected(event: Event) {
@@ -1398,107 +1650,248 @@ function onImportFileSelected(event: Event) {
   const file = input.files?.[0]
   if (file) {
     importSelectedFile.value = file
-    importError.value = ''
-    importResult.value = null
+    invalidateImportPrecheck()
   }
 }
 
-async function doImport() {
-  const file = importSelectedFile.value
-  if (!file) { importError.value = '请先选择 Excel 文件'; return }
+function invalidateImportPrecheck() {
+  importError.value = ''
+  importResult.value = null
+  importToken.value = ''
+  importStep.value = 1
+  importCommitted.value = false
+}
+
+async function onImportTermChange() {
+  importContext.subjectId = ''
+  importSubjects.value = []
+  invalidateImportPrecheck()
+  if (importContext.classId) await loadImportSubjects()
+}
+
+async function onImportSessionChange() {
+  importContext.gradeLevel = ''
+  importContext.classId = ''
+  importContext.subjectId = ''
+  importSubjects.value = []
+  invalidateImportPrecheck()
+  await loadImportClasses()
+}
+
+async function onImportGradeChange() {
+  importContext.classId = ''
+  importContext.subjectId = ''
+  importSubjects.value = []
+  invalidateImportPrecheck()
+  await loadImportClasses()
+}
+
+async function onImportClassChange() {
+  importContext.subjectId = ''
+  invalidateImportPrecheck()
+  await loadImportSubjects()
+}
+
+async function loadImportClasses() {
+  const params: AnyRow = { page: 1, size: 500, mode: importSourceMode.value }
+  if (importContext.gradeSession) params.gradeSession = importContext.gradeSession
+  if (importContext.gradeLevel) params.gradeLevel = Number(importContext.gradeLevel)
+  const response = await call('listClasses', params)
+  importClasses.value = rows(response).filter((item) => Number(item.status) === 1)
+  if (importContext.classId && !importClasses.value.some((item) => String(item.id) === importContext.classId)) {
+    importContext.classId = ''
+    importContext.subjectId = ''
+  }
+}
+
+async function loadImportSubjects() {
+  importSubjects.value = await loadClassSubjectsFor(
+    importContext.academicTermId, importContext.classId, importSourceMode.value)
+  if (importContext.subjectId && !importSubjects.value.some(
+    (item) => String(item.subjectId || item.id) === importContext.subjectId)) {
+    importContext.subjectId = ''
+  }
+}
+
+function validateImportContext() {
+  Object.keys(importFieldErrors).forEach((key) => delete importFieldErrors[key])
+  const required: Array<[string, string, string]> = [
+    ['academicTermId', '请选择学期', 'import-term'],
+    ['gradeSession', '请选择届次', 'import-session'],
+    ['gradeLevel', '请选择年级', 'import-grade'],
+    ['classId', '请选择班级', 'import-class']
+  ]
+  if (isCourseImport.value) {
+    required.push(['subjectId', '请选择科目', 'import-subject'], ['examTypeId', '请选择考试类型', 'import-exam'])
+  }
+  required.push(['file', '请选择 Excel 文件', ''])
+  for (const [field, message, elementId] of required) {
+    const value = field === 'file' ? importSelectedFile.value : (importContext as AnyRow)[field]
+    if (!value) importFieldErrors[field] = message
+    if (!value && elementId) {
+      setTimeout(() => document.getElementById(elementId)?.focus(), 0)
+      return false
+    }
+  }
+  return Object.keys(importFieldErrors).length === 0
+}
+
+async function precheckImport() {
+  if (!validateImportContext()) return
+  const file = importSelectedFile.value as File
   importLoading.value = true
   importError.value = ''
   importResult.value = null
+  importToken.value = ''
+  importStep.value = 2
   try {
-    let result: any
-    if (importScene.value === 'teacher') {
-      result = await schoolApi.importCourseResults(file, importEnableAiPolish.value)
-    } else {
-      result = await schoolApi.importHeadTeacherData(file, importEnableAiPolish.value)
+    const commonContext = {
+      academicTermId: Number(importContext.academicTermId),
+      gradeSession: importContext.gradeSession,
+      gradeLevel: Number(importContext.gradeLevel),
+      classId: Number(importContext.classId)
     }
-    importResult.value = result?.data ?? result ?? {}
-    importSelectedFile.value = null
-    if (importFileInput.value) importFileInput.value.value = ''
-
-    // 导入成功提醒
-    const r = importResult.value
-    const msg = `导入完成：共 ${r.total || 0} 条，成功 ${r.success || 0} 条`
-        + (r.skipped ? `，跳过 ${r.skipped} 条` : '')
-        + (r.failed ? `，失败 ${r.failed} 条` : '')
-    alert(msg)
-
-    // 刷新列表：仅在有选中学生时才刷新个人数据
-    if (teacherMode.value) await loadTeacherEntries()
-    else if (headTeacherQuery.studentId) { await loadOverallComments(); await loadAchievements() }
+    if (isCourseImport.value) {
+      importResult.value = await schoolApi.precheckCourseResults(file, {
+        ...commonContext,
+        subjectId: Number(importContext.subjectId),
+        examTypeId: Number(importContext.examTypeId)
+      })
+    } else {
+      importResult.value = await schoolApi.precheckHeadTeacherData(file, commonContext, importEnableAiPolish.value)
+    }
+    importToken.value = importResult.value?.importToken || ''
   } catch (e: any) {
-    importError.value = e?.message || '导入失败，请检查文件格式'
+    importError.value = e?.message || '预校验失败，请检查文件格式和页面上下文'
   } finally {
     importLoading.value = false
   }
 }
 
+async function commitImport() {
+  if (!importToken.value || Number(importResult.value?.errorCount || 0) > 0) return
+  importLoading.value = true
+  importError.value = ''
+  importStep.value = 3
+  try {
+    importResult.value = isCourseImport.value
+      ? await schoolApi.commitCourseResults(importToken.value)
+      : await schoolApi.commitHeadTeacherData(importToken.value)
+    importToken.value = ''
+    importCommitted.value = true
+    if (importScene.value === 'course' && importSourceMode.value === 'teacher') {
+      await loadTeacherEntries()
+    } else if (importScene.value === 'course' && headTeacherQuery.studentId) {
+      await loadHeadTeacherScores()
+    } else if (headTeacherQuery.studentId) {
+      await Promise.all([loadOverallComments(), loadAchievements()])
+    }
+  } catch (e: any) {
+    importToken.value = ''
+    importStep.value = 2
+    importError.value = e?.message || '导入失败，请重新预校验后再试'
+  } finally {
+    importLoading.value = false
+  }
+}
+
+function downloadImportErrors() {
+  const errors = importResult.value?.errors || []
+  if (!errors.length) return
+  const escapeCsv = (value: any) => `"${String(value ?? '').replace(/"/g, '""')}"`
+  const lines = [['行号', '学号', '姓名', '原因'], ...errors.map((item: AnyRow) => [
+    item.row || '', item.studentNo || '', item.studentName || '', item.reason || ''
+  ])]
+  const blob = new Blob(['\ufeff' + lines.map((line) => line.map(escapeCsv).join(',')).join('\n')], {
+    type: 'text/csv;charset=utf-8'
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `导入错误清单_${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 async function exportTeacherTemplate() {
-  if (!teacherQuery.academicTermId) {
-    errorStore.show('请先选择学期')
-    return
-  }
-  if (!teacherQuery.classId) {
-    errorStore.show('请先选择班级')
-    return
-  }
-  if (!teacherQuery.subjectId) {
-    errorStore.show('请先选择科目')
-    return
-  }
+  if (!validateExportContext(teacherQuery, true, 'teacher')) return
+  exportLoading.value = 'teacher'
   try {
     const res: any = await schoolApi.exportCourseResultTemplate({
       academicTermId: Number(teacherQuery.academicTermId),
+      gradeSession: teacherQuery.gradeSession,
+      gradeLevel: Number(teacherQuery.gradeLevel),
       classId: Number(teacherQuery.classId),
       subjectId: Number(teacherQuery.subjectId),
-      examTypeId: teacherQuery.examTypeId ? Number(teacherQuery.examTypeId) : undefined
+      examTypeId: Number(teacherQuery.examTypeId)
     })
     saveBlobFile(res, `成绩模版_${getClassNameById(teacherQuery.classId)}_${getSubjectNameById(teacherQuery.subjectId)}.xlsx`)
   } catch (e: any) {
     if (e?.message) errorStore.show(e.message)
+  } finally {
+    exportLoading.value = ''
   }
 }
 
 async function exportHeadTeacherTemplate() {
-  if (!headTeacherQuery.academicTermId) {
-    errorStore.show('请先选择学期')
-    return
-  }
-  if (!headTeacherQuery.classId) {
-    errorStore.show('请先选择班级')
-    return
-  }
+  if (!validateExportContext(headTeacherQuery, false, 'head')) return
+  exportLoading.value = 'parent'
   try {
     const res: any = await schoolApi.exportHeadTeacherTemplate({
       academicTermId: Number(headTeacherQuery.academicTermId),
+      gradeSession: headTeacherQuery.gradeSession,
+      gradeLevel: Number(headTeacherQuery.gradeLevel),
       classId: Number(headTeacherQuery.classId)
     })
     saveBlobFile(res, `综合评价与荣誉_${getClassNameById(headTeacherQuery.classId)}.xlsx`)
   } catch (e: any) {
     if (e?.message) errorStore.show(e.message)
+  } finally {
+    exportLoading.value = ''
   }
 }
 
-// 班主任导出课程成绩模版（可导出班级全部课程）
 async function exportHeadTeacherGradeTemplate() {
-  if (!headTeacherQuery.academicTermId) { errorStore.show('请先选择学期'); return }
-  if (!headTeacherQuery.classId) { errorStore.show('请先选择班级'); return }
-  if (!headTeacherGradeSubjectId.value) { errorStore.show('请选择成绩科目'); return }
+  const context = { ...headTeacherQuery, subjectId: headTeacherGradeSubjectId.value }
+  if (!validateExportContext(context, true, 'head')) return
+  exportLoading.value = 'headScore'
   try {
     const res: any = await schoolApi.exportCourseResultTemplate({
       academicTermId: Number(headTeacherQuery.academicTermId),
+      gradeSession: headTeacherQuery.gradeSession,
+      gradeLevel: Number(headTeacherQuery.gradeLevel),
       classId: Number(headTeacherQuery.classId),
       subjectId: Number(headTeacherGradeSubjectId.value),
-      examTypeId: headTeacherQuery.examTypeId ? Number(headTeacherQuery.examTypeId) : undefined
+      examTypeId: Number(headTeacherQuery.examTypeId)
     })
     saveBlobFile(res, `成绩模版_${getClassNameById(headTeacherQuery.classId)}_${getSubjectNameById(headTeacherGradeSubjectId.value)}.xlsx`)
   } catch (e: any) {
     if (e?.message) errorStore.show(e.message)
+  } finally {
+    exportLoading.value = ''
   }
+}
+
+function validateExportContext(context: AnyRow, includeCourse: boolean, prefix: 'teacher' | 'head') {
+  const fields: Array<[string, string, string]> = [
+    ['academicTermId', '请选择学期', `${prefix}-term`],
+    ['gradeSession', '请选择届次', `${prefix}-session`],
+    ['gradeLevel', '请选择年级', `${prefix}-grade`],
+    ['classId', '请选择班级', `${prefix}-class`]
+  ]
+  if (includeCourse) {
+    fields.push(['subjectId', '请选择科目', `${prefix}-subject`], ['examTypeId', '请选择考试类型', `${prefix}-exam`])
+  }
+  const missing = fields.find(([field]) => !context[field])
+  if (!missing) {
+    if (prefix === 'teacher') teacherContextError.value = ''
+    else headTeacherContextError.value = ''
+    return true
+  }
+  if (prefix === 'teacher') teacherContextError.value = missing[1]
+  else headTeacherContextError.value = missing[1]
+  document.getElementById(missing[2])?.focus()
+  return false
 }
 
 function saveBlobFile(res: any, defaultFileName: string) {
@@ -1528,41 +1921,83 @@ function getClassNameById(classId: string) {
 }
 
 function getSubjectNameById(subjectId: string) {
-  const s = subjects.value.find((x: AnyRow) => String(x.id) === subjectId)
+  const options = [...teacherSubjects.value, ...headTeacherSubjects.value, ...subjects.value]
+  const s = options.find((x: AnyRow) => String(x.subjectId || x.id) === subjectId)
   return s?.subjectName || s?.name || subjectId
 }
 
 // ---- Initialization ----
 async function loadBaseData() {
-  // Pass mode param for dual-role teachers so backend filters classes/subjects correctly
-  const modeParam: AnyRow = { page: 1, size: 500 }
-  if (auth.isDualRoleTeacher && teacherMode.value) {
-    modeParam.mode = workspaceTab.value
-  }
-  const subjectParam: AnyRow = {}
-  if (auth.isDualRoleTeacher && teacherMode.value) {
-    subjectParam.mode = workspaceTab.value
-  }
-  const [termRes, classRes, subjectRes, examRes, honorRes] = await Promise.all([
+  const mode = currentMode()
+  const [termRes, filterRes, subjectRes, examRes, honorRes] = await Promise.all([
     call('listAcademicTerms'),
-    call('listClasses', modeParam),
-    call('listSubjects', subjectParam),
+    call('listClassFilterOptions', { mode }),
+    call('listSubjects', { mode }),
     call('listExamTypes'),
     call('listEnabledHonorTypes').catch(() => call('listHonorTypes'))
   ])
   terms.value = rows(termRes)
-  classes.value = rows(classRes)
+  classFilterOptions.value = payload(filterRes)
   subjects.value = rows(subjectRes)
   examTypes.value = rows(examRes)
   honorTypes.value = rows(honorRes)
 }
 
+async function loadScopedClasses(query: AnyRow) {
+  const mode: 'teacher' | 'headTeacher' = query === teacherQuery ? 'teacher' : 'headTeacher'
+  const params: AnyRow = { page: 1, size: 500, mode }
+  if (query.gradeSession) params.gradeSession = query.gradeSession
+  if (query.gradeLevel) params.gradeLevel = Number(query.gradeLevel)
+  const response = await call('listClasses', params)
+  classes.value = rows(response).filter((item) => Number(item.status) === 1)
+  if (query.classId && !classes.value.some((item) => String(item.id) === String(query.classId))) {
+    query.classId = ''
+    query.subjectId = ''
+  }
+}
+
+async function loadClassSubjectsFor(
+  academicTermId: string,
+  classId: string,
+  mode: 'teacher' | 'headTeacher'
+) {
+  if (!academicTermId || !classId) return []
+  try {
+    const response = await schoolApi.listClassSubjects(
+      Number(academicTermId), Number(classId), mode)
+    return rows(response)
+  } catch {
+    return []
+  }
+}
+
+function sessionStorageKey(mode: 'teacher' | 'headTeacher') {
+  return `xinshi-scores-last-session-${mode}`
+}
+
+function persistLastSession(mode: 'teacher' | 'headTeacher', gradeSession: string) {
+  if (gradeSession) localStorage.setItem(sessionStorageKey(mode), gradeSession)
+  else localStorage.removeItem(sessionStorageKey(mode))
+}
+
+function defaultGradeSession(mode: 'teacher' | 'headTeacher') {
+  const routeSession = mode === 'headTeacher' ? String(route.query.gradeSession || '') : ''
+  if (routeSession && gradeSessions.value.includes(routeSession)) return routeSession
+  const stored = localStorage.getItem(sessionStorageKey(mode)) || ''
+  if (stored && gradeSessions.value.includes(stored)) return stored
+  return gradeSessions.value.length === 1 ? gradeSessions.value[0] : ''
+}
+
 function initFromRoute() {
   const routeAcademicTermId = route.query.academicTermId as string
+  const routeGradeSession = route.query.gradeSession as string
+  const routeGradeLevel = route.query.gradeLevel as string
   const routeClassId = route.query.classId as string
   const routeStudentId = route.query.studentId as string
 
   if (routeAcademicTermId) headTeacherQuery.academicTermId = routeAcademicTermId
+  if (routeGradeSession) headTeacherQuery.gradeSession = routeGradeSession
+  if (routeGradeLevel) headTeacherQuery.gradeLevel = routeGradeLevel
   if (routeClassId) headTeacherQuery.classId = routeClassId
   if (routeStudentId) {
     headTeacherQuery.studentId = routeStudentId
@@ -1577,55 +2012,45 @@ async function loadPage() {
   try {
     await loadBaseData()
 
-    // Auto-set default term if not set
     const defaultTerm = terms.value.find((t: AnyRow) => Number(t.status) === 1) || terms.value[0]
-    // 如果从学生页面进入（已带 studentId），不自动设置学期，展示全部成绩
-    if (defaultTerm && !headTeacherQuery.academicTermId && !headTeacherQuery.studentId) {
-      headTeacherQuery.academicTermId = String(defaultTerm.id)
-    }
+    if (defaultTerm && !headTeacherQuery.academicTermId) headTeacherQuery.academicTermId = String(defaultTerm.id)
     if (defaultTerm && !teacherQuery.academicTermId) {
       teacherQuery.academicTermId = String(defaultTerm.id)
     }
 
-    // Auto-set default class for head teacher mode if not set
-    if (!teacherMode.value && !headTeacherQuery.classId && classes.value.length > 0) {
-      headTeacherQuery.classId = String(classes.value[0].id)
+    const activeQuery = teacherMode.value ? teacherQuery : headTeacherQuery
+    if (activeQuery.classId && (!activeQuery.gradeSession || !activeQuery.gradeLevel)) {
+      const allClassResponse = await call('listClasses', { page: 1, size: 500, mode: currentMode() })
+      const targetClass = rows(allClassResponse).find(
+        (item) => Number(item.status) === 1 && String(item.id) === String(activeQuery.classId))
+      if (targetClass) {
+        activeQuery.gradeSession = targetClass.gradeSession || ''
+        activeQuery.gradeLevel = targetClass.gradeLevel ? String(targetClass.gradeLevel) : ''
+      }
     }
+    if (!activeQuery.gradeSession) activeQuery.gradeSession = defaultGradeSession(currentMode())
+    await loadScopedClasses(activeQuery)
+    if (!activeQuery.classId && classes.value.length === 1) activeQuery.classId = String(classes.value[0].id)
 
     if (teacherMode.value) {
-      // Teacher mode: load entries for assigned courses
+      if (teacherQuery.classId) await loadTeacherSubjects()
       await loadTeacherEntries()
     } else {
-      // Head teacher mode
-      // 保存从 route 传入的 studentId，避免 onHeadTeacherClassChange 清空
       const routeStudentId = headTeacherQuery.studentId
 
       if (headTeacherQuery.classId) {
         await onHeadTeacherClassChange()
       }
 
-      // 恢复从 route 传入的 studentId
       if (routeStudentId) {
         headTeacherQuery.studentId = routeStudentId
       }
-
-      // If studentId is set but classId wasn't, auto-detect class from student
-      if (!headTeacherQuery.classId && headTeacherQuery.studentId) {
-        const student = allStudents.value.find((s) => String(s.id) === String(headTeacherQuery.studentId))
-        if (student?.classId) {
-          headTeacherQuery.classId = String(student.classId)
-          await onHeadTeacherClassChange()
-        }
-      }
-
-      // If student not found in class students, clear selection
       if (headTeacherQuery.studentId && allStudents.value.length > 0 &&
           !allStudents.value.some((s) => String(s.id) === String(headTeacherQuery.studentId))) {
         headTeacherQuery.studentId = ''
         studentKeyword.value = ''
       }
 
-      // Set student keyword from selected student name
       if (headTeacherQuery.studentId) {
         const student = allStudents.value.find((s) => String(s.id) === String(headTeacherQuery.studentId))
         if (student) studentKeyword.value = student.studentName || student.name || ''
@@ -1647,7 +2072,7 @@ onMounted(() => {
 
 // Watch route query changes and re-initialize
 watch(
-  () => [route.query.classId, route.query.studentId, route.query.academicTermId],
+  () => [route.query.classId, route.query.studentId, route.query.academicTermId, route.query.gradeSession, route.query.gradeLevel],
   () => {
     initFromRoute()
     loadPage()
@@ -1658,13 +2083,240 @@ watch(
 <style scoped>
 .scores-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
   gap: 20px;
+}
+
+.scores-page > * {
+  min-width: 0;
 }
 
 .filters {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
+}
+
+.score-query-form.card-form.compact {
+  grid-template-areas:
+    "term session grade class"
+    "subject exam keyword action";
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.score-query-form > * {
+  min-width: 0;
+}
+
+.score-query-form #teacher-term,
+.score-query-form #head-term { grid-area: term; }
+.score-query-form #teacher-session,
+.score-query-form #head-session { grid-area: session; }
+.score-query-form #teacher-grade,
+.score-query-form #head-grade { grid-area: grade; }
+.score-query-form #teacher-class,
+.score-query-form #head-class { grid-area: class; }
+.score-query-form #teacher-subject,
+.score-query-form #head-subject { grid-area: subject; }
+.score-query-form #teacher-exam,
+.score-query-form #head-exam { grid-area: exam; }
+
+.score-query-keyword {
+  grid-area: keyword;
+}
+
+.score-query-form .student-search {
+  min-width: 0;
+}
+
+.score-query-submit {
+  grid-area: action;
+  justify-self: end;
+  width: 112px;
+}
+
+.score-form-grid {
+  grid-template-columns: minmax(200px, 1.25fr) minmax(180px, 1fr) minmax(120px, 0.65fr);
+  align-items: start;
+}
+
+.score-field-value input {
+  max-width: 150px;
+}
+
+.score-field-value small {
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.batch-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.batch-panel > .panel-head {
+  flex: 1;
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.batch-panel h2,
+.batch-panel p {
+  margin: 0;
+}
+
+.batch-context {
+  color: #0f766e !important;
+  font-weight: 700;
+}
+
+.batch-panel p {
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.batch-actions,
+.pagination-buttons,
+.error-list-head,
+.import-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pagination-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.pagination-jump input {
+  width: 64px;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.import-modal {
+  width: min(860px, 100%);
+}
+
+.import-content {
+  display: grid;
+  gap: 16px;
+}
+
+.import-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.import-steps span {
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: #64748b;
+  background: #f1f5f9;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.import-steps span.active {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.import-context-grid {
+  display: grid;
+  grid-template-areas:
+    "term session grade class"
+    "subject subject exam exam";
+  grid-template-columns: minmax(180px, 1.3fr) minmax(105px, 0.75fr) minmax(140px, 1fr) minmax(220px, 1.5fr);
+  gap: 12px;
+}
+
+.import-field-term { grid-area: term; }
+.import-field-session { grid-area: session; }
+.import-field-grade { grid-area: grade; }
+.import-field-class { grid-area: class; }
+.import-field-subject { grid-area: subject; }
+.import-field-exam { grid-area: exam; }
+
+.import-context-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.import-context-grid label > span,
+.import-file-label {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.import-context-grid small,
+.field-error {
+  color: #b91c1c;
+}
+
+.ai-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.ai-toggle input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.ai-toggle strong,
+.ai-toggle small {
+  display: block;
+}
+
+.ai-toggle small,
+.import-file-empty,
+.import-loading,
+.import-more-errors {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.import-file-name {
+  min-width: 0;
+  color: #334155;
+  word-break: break-all;
+}
+
+.error-list-head {
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.error-list-head p {
+  margin: 0;
+  font-weight: 700;
 }
 
 .score-input {
@@ -1693,8 +2345,67 @@ watch(
   font-size: 13px;
 }
 
+@media (max-width: 1100px) {
+  .score-query-form.card-form.compact {
+    grid-template-areas:
+      "term session"
+      "grade class"
+      "subject exam"
+      "keyword action";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .import-context-grid {
+    grid-template-areas:
+      "term term"
+      "session grade"
+      "class class"
+      "subject exam";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
   .filters { grid-template-columns: 1fr; }
+  .batch-panel { align-items: stretch; flex-direction: column; }
+  .batch-actions { justify-content: stretch; }
+  .batch-actions .button { flex: 1; }
+  .score-query-form.card-form.compact {
+    grid-template-areas:
+      "term"
+      "session"
+      "grade"
+      "class"
+      "subject"
+      "exam"
+      "keyword"
+      "action";
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .score-query-submit {
+    justify-self: stretch;
+    width: 100%;
+  }
+  .score-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .score-field-value input {
+    max-width: none;
+  }
+  .import-context-grid {
+    grid-template-areas:
+      "term"
+      "session"
+      "grade"
+      "class"
+      "subject"
+      "exam";
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .import-steps { grid-template-columns: 1fr; }
+  .pagination-buttons { flex-wrap: wrap; }
 }
 
 /* Import error banner */
