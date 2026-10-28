@@ -67,6 +67,9 @@ const form = reactive({
 
 let contentController: AbortController | undefined
 
+// 已成功加载过的 Tab（切换回来直接展示缓存，不重复请求）
+const loadedTabs = ref<Set<ContentTab>>(new Set())
+
 const isSelectionState = computed(() => selectionStates.has(state.value.flowState))
 const selectionState = computed(() => state.value.flowState as H5SelectionState)
 const availableExams = computed(() =>
@@ -84,6 +87,32 @@ const readyContextBlocked = computed(() =>
   && state.value.queryPreset !== undefined
   && !hasResolvedPreset(state.value.queryPreset)
 )
+const schoolName = computed(() => state.value.schoolName || '新实中学')
+const sealText = computed(() => schoolName.value.replace(/中学|学校/g, '').slice(0, 2) || '档案')
+const selectedTermCapability = computed(() =>
+  terms.value.find((term) => term.academicTermId === selectedTerm.value)
+)
+// 查询条件区内的轻提示（区别于底部错误横幅）
+const queryHint = computed(() => {
+  if (!terms.value.length) return ''
+  if (tab.value === 'scores') {
+    if (!selectedTerm.value) return ''
+    if (!availableExams.value.length) return '该学期暂无已发布成绩，可查看班主任评语或荣誉'
+    if (!examTypeId.value) return '请选择考试类型后查询'
+  }
+  return ''
+})
+
+function formatDate(value?: string) {
+  if (!value) return ''
+  const [year, month, day] = value.slice(0, 10).split('-')
+  return month && day ? `${year}年${Number(month)}月${Number(day)}日` : value.slice(0, 10)
+}
+
+function capabilityFlag(value: boolean | number | undefined) {
+  return Boolean(value)
+}
+
 const statusContent = computed(() => {
   const statuses: Partial<Record<H5FlowState, { title: string; message: string; retry: boolean }>> = {
     ACCOUNT_DISABLED: { title: '账户暂不可用', message: '请联系学校管理员处理。', retry: false },
@@ -142,6 +171,7 @@ function clearResults() {
   scoreData.value = undefined
   commentData.value = undefined
   honors.value = []
+  loadedTabs.value = new Set()
 }
 
 function clearRegistrationSecrets() {
@@ -245,6 +275,8 @@ async function enterReady(response: H5FlowResponse) {
   selectedTerm.value = defaultTerm?.academicTermId
   examTypeId.value = defaultTerm?.examTypes.length === 1 ? defaultTerm.examTypes[0].examTypeId : undefined
   clearResults()
+  // 默认条件已就绪时自动加载成绩，减少家长操作步骤
+  if (selectedTerm.value && examTypeId.value) void queryContent(false)
 }
 
 async function applyResolvedPreset(preset: H5QueryPreset) {
@@ -364,24 +396,27 @@ async function changeStudent() {
     || terms.value.find((term) => Boolean(term.hasScores))
   selectedTerm.value = defaultTerm?.academicTermId
   examTypeId.value = defaultTerm?.examTypes.length === 1 ? defaultTerm.examTypes[0].examTypeId : undefined
+  if (selectedTerm.value && examTypeId.value) void queryContent(false)
 }
 
 function changeTerm() {
   clearResults()
   examTypeId.value = availableExams.value.length === 1 ? availableExams.value[0].examTypeId : undefined
+  if (selectedTerm.value && examTypeId.value) void queryContent(false)
 }
 
 function changeExam() {
   clearResults()
+  if (selectedTerm.value && examTypeId.value) void queryContent(false)
 }
 
-async function queryContent() {
+async function queryContent(manual = true) {
   if (!selectedStudent.value || !selectedTerm.value) {
-    error.value = '请选择学生和学期'
+    if (manual) error.value = '请选择学生和学期'
     return
   }
   if (tab.value === 'scores' && !examTypeId.value) {
-    error.value = '请选择一个考试类型后查询'
+    if (manual) error.value = '请选择一个考试类型后查询'
     return
   }
 
@@ -398,13 +433,20 @@ async function queryContent() {
       const response = await listH5Scores(requestStudent, requestTerm, requestExam, controller.signal)
       if (selectedStudent.value === requestStudent && selectedTerm.value === requestTerm && examTypeId.value === requestExam) {
         scoreData.value = response
+        loadedTabs.value.add('scores')
       }
     } else if (tab.value === 'comment') {
       const response = await getH5Comment(requestStudent, requestTerm, controller.signal)
-      if (selectedStudent.value === requestStudent && selectedTerm.value === requestTerm) commentData.value = response
+      if (selectedStudent.value === requestStudent && selectedTerm.value === requestTerm) {
+        commentData.value = response
+        loadedTabs.value.add('comment')
+      }
     } else if (tab.value === 'honors') {
       const response = await listH5Honors(requestStudent, requestTerm, controller.signal)
-      if (selectedStudent.value === requestStudent && selectedTerm.value === requestTerm) honors.value = response.items
+      if (selectedStudent.value === requestStudent && selectedTerm.value === requestTerm) {
+        honors.value = response.items
+        loadedTabs.value.add('honors')
+      }
     }
   } catch (value) {
     if (axiosAbort(value)) return
@@ -422,23 +464,36 @@ function axiosAbort(value: unknown) {
 }
 
 function switchTab(nextTab: ContentTab) {
+  if (nextTab === tab.value) return
   tab.value = nextTab
+  if (loadedTabs.value.has(nextTab)) return // 已有缓存，直接展示
   clearResults()
+  void queryContent(false) // 自动查询该 Tab 内容
 }
 
-onMounted(initialize)
+onMounted(() => {
+  document.title = `${schoolName.value} · 学生成长查询`
+  initialize()
+})
 onBeforeUnmount(() => contentController?.abort())
 </script>
 
 <template>
   <main class="h5-page">
     <header class="h5-hero">
-      <p>新实中学</p>
-      <h1>学生成长查询</h1>
-      <span>仅展示已发布内容</span>
+      <div class="h5-hero-inner">
+        <span class="h5-seal" aria-hidden="true">{{ sealText }}</span>
+        <p class="h5-hero-school">{{ schoolName }}</p>
+        <h1>学生成长档案</h1>
+        <p class="h5-hero-sub">成绩<i>·</i>班主任评语<i>·</i>荣誉 ｜ 仅展示已发布内容</p>
+      </div>
     </header>
 
-    <section v-if="loading" class="h5-card h5-center">正在加载安全查询环境…</section>
+    <section v-if="loading" class="h5-card" aria-busy="true">
+      <div class="h5-skeleton h5-skeleton--title"></div>
+      <div class="h5-skeleton"></div>
+      <div class="h5-skeleton h5-skeleton--short"></div>
+    </section>
 
     <section v-else-if="state.flowState === 'LOGIN_CONFIRMATION_REQUIRED'" class="h5-card">
       <h2>微信身份确认</h2>
@@ -489,60 +544,129 @@ onBeforeUnmount(() => contentController?.abort())
       </button>
     </section>
 
-    <section v-else-if="state.flowState === 'READY' && !readyContextBlocked" class="h5-card">
+    <section v-else-if="state.flowState === 'READY' && !readyContextBlocked" class="h5-card h5-archive">
       <p v-if="readyPreset" class="h5-preset">
         已应用微信查询条件：{{ readyPreset.studentNameMasked || '本人学生' }}
         <template v-if="readyPreset.requestedYear"> · {{ readyPreset.requestedYear }} 年</template>
         <template v-if="readyPreset.requestedExamTypeCode"> · {{ readyPreset.requestedExamTypeCode }}</template>
       </p>
-      <div class="h5-selects">
-        <label>
-          学生
-          <select v-model.number="selectedStudent" @change="changeStudent">
-            <option v-for="student in students" :key="student.studentId" :value="student.studentId">{{ student.studentNameMasked }} · {{ student.className }}</option>
-          </select>
-        </label>
-        <label>
-          学期
-          <select v-model.number="selectedTerm" @change="changeTerm">
-            <option :value="undefined" disabled>请选择学期</option>
-            <option v-for="term in terms" :key="term.academicTermId" :value="term.academicTermId">{{ term.termName }}</option>
-          </select>
-        </label>
-        <label v-if="tab === 'scores'">
-          考试类型
-          <select v-model.number="examTypeId" @change="changeExam">
-            <option :value="undefined" disabled>请选择考试类型</option>
-            <option v-for="exam in availableExams" :key="exam.examTypeId" :value="exam.examTypeId">{{ exam.examTypeName }}</option>
-          </select>
-        </label>
+
+      <div v-if="terms.length" class="h5-querybox">
+        <div class="h5-selects">
+          <label class="h5-field h5-field--full">
+            <span class="h5-field-label">学生</span>
+            <span class="h5-select-wrap">
+              <select v-model.number="selectedStudent" @change="changeStudent">
+                <option v-for="student in students" :key="student.studentId" :value="student.studentId">{{ student.studentNameMasked }} · {{ student.className }}</option>
+              </select>
+            </span>
+          </label>
+          <label class="h5-field">
+            <span class="h5-field-label">学期</span>
+            <span class="h5-select-wrap">
+              <select v-model.number="selectedTerm" @change="changeTerm">
+                <option v-for="term in terms" :key="term.academicTermId" :value="term.academicTermId">{{ term.termName }}</option>
+              </select>
+            </span>
+          </label>
+          <label v-if="tab === 'scores'" class="h5-field">
+            <span class="h5-field-label">考试类型</span>
+            <span class="h5-select-wrap">
+              <select v-model.number="examTypeId" @change="changeExam">
+                <option :value="undefined" disabled>请选择考试类型</option>
+                <option v-for="exam in availableExams" :key="exam.examTypeId" :value="exam.examTypeId">{{ exam.examTypeName }}</option>
+              </select>
+            </span>
+          </label>
+        </div>
+        <p v-if="queryHint" class="h5-query-hint" role="status">{{ queryHint }}</p>
+
+        <nav class="h5-tabs" role="tablist" aria-label="学生成长内容">
+          <button type="button" role="tab" :aria-selected="tab === 'scores'" :class="{ active: tab === 'scores' }" @click="switchTab('scores')">
+            成绩<i v-if="capabilityFlag(selectedTermCapability?.hasScores)" class="h5-tab-dot" aria-hidden="true"></i>
+          </button>
+          <button type="button" role="tab" :aria-selected="tab === 'comment'" :class="{ active: tab === 'comment' }" @click="switchTab('comment')">
+            班主任评语<i v-if="capabilityFlag(selectedTermCapability?.hasTeacherComment)" class="h5-tab-dot" aria-hidden="true"></i>
+          </button>
+          <button type="button" role="tab" :aria-selected="tab === 'honors'" :class="{ active: tab === 'honors' }" @click="switchTab('honors')">
+            荣誉<i v-if="capabilityFlag(selectedTermCapability?.hasHonors)" class="h5-tab-dot" aria-hidden="true"></i>
+          </button>
+        </nav>
+        <button class="h5-query" :disabled="contentLoading" @click="queryContent()">{{ contentLoading ? '查询中…' : '查询已发布内容' }}</button>
       </div>
-      <nav class="h5-tabs" aria-label="学生成长内容">
-        <button type="button" :class="{ active: tab === 'scores' }" @click="switchTab('scores')">成绩</button>
-        <button type="button" :class="{ active: tab === 'comment' }" @click="switchTab('comment')">班主任评语</button>
-        <button type="button" :class="{ active: tab === 'honors' }" @click="switchTab('honors')">荣誉</button>
-      </nav>
-      <button class="h5-query" :disabled="contentLoading" @click="queryContent">{{ contentLoading ? '查询中…' : '查询已发布内容' }}</button>
-      <div v-if="tab === 'scores' && scoreData" class="h5-result">
-        <h2>{{ scoreData.examType.examTypeName || '考试成绩' }}</h2>
-        <p>总分 {{ scoreData.summary.totalScore }} · 平均分 {{ scoreData.summary.averageScore }}</p>
-        <article v-for="subject in scoreData.subjects" :key="subject.resultId">
-          <b>{{ subject.subjectName }}</b><strong>{{ subject.score ?? '未录入' }}</strong><small v-if="subject.maxScore !== null">/ {{ subject.maxScore }}</small>
-        </article>
-        <p v-if="!scoreData.subjects.length" class="h5-empty">该范围暂无已发布成绩。</p>
+
+      <div v-else class="h5-empty-state">
+        <p>本学期暂无已发布内容</p>
+        <small>老师发布成绩、班主任评语或荣誉后，即可在这里查询。<br />如有疑问，请联系班主任。</small>
       </div>
-      <div v-if="tab === 'comment' && commentData" class="h5-result">
-        <article v-if="commentData.comment">
-          <h2>{{ commentData.comment.teacherNameDisplay || '班主任' }}</h2>
-          <p v-if="commentData.comment.overallComment">{{ commentData.comment.overallComment }}</p>
-          <p v-if="commentData.comment.strengths">{{ commentData.comment.strengths }}</p>
-          <p v-if="commentData.comment.improvementPoints">{{ commentData.comment.improvementPoints }}</p>
-        </article>
-        <p v-else class="h5-empty">本学期暂无已发布评语。</p>
+
+      <div v-if="contentLoading" class="h5-result" aria-live="polite">
+        <div class="h5-skeleton h5-skeleton--title"></div>
+        <div class="h5-skeleton"></div>
+        <div class="h5-skeleton"></div>
+        <div class="h5-skeleton h5-skeleton--short"></div>
       </div>
-      <div v-if="tab === 'honors'" class="h5-result">
-        <article v-for="honor in honors" :key="honor.honorId"><b>{{ honor.achievementText }}</b><small>{{ honor.awardedOn || honor.termName }}</small></article>
-        <p v-if="!honors.length && !contentLoading" class="h5-empty">暂无已发布荣誉。</p>
+
+      <div v-else-if="tab === 'scores' && scoreData" class="h5-result">
+        <div class="h5-result-head">
+          <h2>{{ scoreData.examType.examTypeName || '考试成绩' }}</h2>
+          <p v-if="scoreData.term.termName" class="h5-result-meta">{{ scoreData.term.termName }}</p>
+        </div>
+        <div class="h5-summary">
+          <div><span>总分</span><strong>{{ scoreData.summary.totalScore }}</strong></div>
+          <div><span>平均分</span><strong>{{ scoreData.summary.averageScore }}</strong></div>
+        </div>
+        <ol v-if="scoreData.subjects.length" class="h5-score-list">
+          <li v-for="subject in scoreData.subjects" :key="subject.resultId">
+            <b class="h5-subject-name">{{ subject.subjectName }}</b>
+            <span class="h5-leader" aria-hidden="true"></span>
+            <strong class="h5-score-value">{{ subject.score ?? '未录入' }}</strong>
+            <small v-if="subject.maxScore !== null" class="h5-score-max">/ {{ subject.maxScore }}</small>
+          </li>
+        </ol>
+        <p v-else class="h5-empty">该范围暂无已发布成绩。</p>
+      </div>
+
+      <div v-else-if="tab === 'comment' && commentData" class="h5-result">
+        <div class="h5-result-head">
+          <h2>班主任评语</h2>
+          <p v-if="commentData.comment" class="h5-result-meta">
+            {{ commentData.comment.teacherNameDisplay || '班主任' }}
+            <template v-if="commentData.comment.publishedAt"> · {{ formatDate(commentData.comment.publishedAt) }}</template>
+          </p>
+        </div>
+        <template v-if="commentData.comment">
+          <div v-if="commentData.comment.overallComment" class="h5-comment-block">
+            <span class="h5-block-label">综合评语</span>
+            <p>{{ commentData.comment.overallComment }}</p>
+          </div>
+          <div v-if="commentData.comment.strengths" class="h5-comment-block">
+            <span class="h5-block-label">优点与亮点</span>
+            <p>{{ commentData.comment.strengths }}</p>
+          </div>
+          <div v-if="commentData.comment.improvementPoints" class="h5-comment-block">
+            <span class="h5-block-label">待改进之处</span>
+            <p>{{ commentData.comment.improvementPoints }}</p>
+          </div>
+        </template>
+        <p v-else class="h5-empty">本学期暂无已发布评语。<small>评语由班主任发布，发布后即可在这里查看。</small></p>
+      </div>
+
+      <div v-else-if="tab === 'honors'" class="h5-result">
+        <div class="h5-result-head">
+          <h2>荣誉记录</h2>
+          <p v-if="honors.length" class="h5-result-meta">共 {{ honors.length }} 项</p>
+        </div>
+        <ul v-if="honors.length" class="h5-honor-list">
+          <li v-for="honor in honors" :key="honor.honorId">
+            <i class="h5-honor-mark" aria-hidden="true"></i>
+            <div>
+              <b>{{ honor.achievementText }}</b>
+              <small>{{ formatDate(honor.awardedOn || honor.publishedAt) || honor.termName }}</small>
+            </div>
+          </li>
+        </ul>
+        <p v-else class="h5-empty">暂无已发布荣誉。<small>荣誉由班主任在后台发布，发布后即可在这里查看。</small></p>
       </div>
     </section>
 
@@ -555,6 +679,6 @@ onBeforeUnmount(() => contentController?.abort())
     <p v-if="queryContextWarning" class="h5-warning" role="status">{{ queryContextWarning }}</p>
     <p v-if="notice" class="h5-notice" role="status">{{ notice }}</p>
     <p v-if="error" class="h5-error" role="alert">{{ error }}</p>
-    <footer>查询结果仅供本人查看，请勿转发含学生隐私的截图</footer>
+    <footer>{{ schoolName }} · 查询结果仅供本人查看，请勿转发含学生隐私的截图</footer>
   </main>
 </template>

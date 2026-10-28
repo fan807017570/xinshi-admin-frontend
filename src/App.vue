@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onErrorCaptured, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onErrorCaptured, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { listMenus } from './api/school'
+import { getSessionStatus, listMenus } from './api/school'
 import { useAuthStore } from './stores/auth'
 import { useErrorStore } from './stores/error'
 import logoUrl from './assets/xinshi_logo.png'
@@ -27,6 +27,7 @@ const staticLabels: Record<string, string> = {
   config: '基础配置',
   users: '用户管理',
   classes: '班级管理',
+  teaching: '教学管理与教研',
   students: '学生管理',
   scores: '成绩管理',
   classStats: '班级成绩统计',
@@ -39,6 +40,7 @@ const menuIcons: Record<string, string> = {
   config: '⚙️',
   users: '👥',
   classes: '🏫',
+  teaching: '教',
   students: '🎓',
   scores: '📊',
   classStats: '📈',
@@ -46,7 +48,7 @@ const menuIcons: Record<string, string> = {
   parents: '👪'
 }
 
-const menuOrder = ['config', 'users', 'classes', 'students', 'scores', 'classStats', 'transcripts', 'parents']
+const menuOrder = ['config', 'users', 'classes', 'teaching', 'students', 'scores', 'classStats', 'transcripts', 'parents']
 
 function readSidebarWidth() {
   const value = Number(localStorage.getItem(sidebarStorageKey))
@@ -122,11 +124,51 @@ async function doLogout() {
   router.push('/login')
 }
 
+// 单会话互斥心跳：30s 校验一次会话状态（只校验不续期），被顶下线时由 401 拦截器统一跳登录
+const HEARTBEAT_INTERVAL = 30000
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
+async function checkSessionStatus() {
+  if (!auth.isAuthenticated) return
+  try {
+    await getSessionStatus()
+  } catch {
+    // 401 由拦截器处理（清 token、跳登录、被踢提示）；其余错误静默忽略
+  }
+}
+
+function startHeartbeat() {
+  stopHeartbeat()
+  heartbeatTimer = setInterval(checkSessionStatus, HEARTBEAT_INTERVAL)
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer)
+    heartbeatTimer = null
+  }
+}
+
+function onVisibilityChange() {
+  // 回到前台立即检测一次，后台标签页不轮询
+  if (document.visibilityState === 'visible') {
+    checkSessionStatus()
+  }
+}
+
 onMounted(async () => {
-  // 先恢复登录态，成功后再加载菜单，避免 token 失效时的并发错误
-  await auth.restore()
-  loadMenus()
+  // H5 查询页独立于管理后台会话，不恢复管理端登录态、不加载菜单
+  if (route.meta.layout !== 'h5') {
+    // 先恢复登录态，成功后再加载菜单，避免 token 失效时的并发错误
+    await auth.restore()
+    loadMenus()
+  }
   document.addEventListener('click', handleDocumentClick, true)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  watch(() => auth.isAuthenticated, (value) => {
+    if (value) startHeartbeat()
+    else stopHeartbeat()
+  }, { immediate: true })
 
   // 全局未捕获异常弹窗
   window.addEventListener('unhandledrejection', (event) => {
@@ -147,6 +189,8 @@ onUnmounted(() => {
   document.removeEventListener('mousemove', resize)
   document.removeEventListener('mouseup', stopResize)
   document.removeEventListener('click', handleDocumentClick, true)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  stopHeartbeat()
 })
 </script>
 
@@ -154,7 +198,8 @@ onUnmounted(() => {
   <div
     v-if="showShell"
     class="app-shell"
-    :style="{ gridTemplateColumns: `${sidebarWidth}px 6px 1fr` }"
+    :class="{ 'app-shell--teaching': route.path.startsWith('/teaching') }"
+    :style="{ gridTemplateColumns: route.path.startsWith('/teaching') ? `${sidebarWidth}px 6px minmax(0, 1fr)` : `${sidebarWidth}px 6px 1fr` }"
   >
     <aside class="sidebar">
       <RouterLink class="brand" to="/dashboard">

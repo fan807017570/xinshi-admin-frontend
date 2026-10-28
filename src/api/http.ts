@@ -33,10 +33,15 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // 401 不弹窗，直接跳转登录
+    // 401 不弹窗，直接跳转登录；被顶下线时写入标记，登录页展示专属提示
     if (error.response?.status === 401) {
       localStorage.removeItem(AUTH_STORAGE_KEY)
-      if (window.location.pathname !== '/login') {
+      if (error.response?.data?.reason === 'SESSION_KICKED') {
+        sessionStorage.setItem('login-kick-reason', error.response?.data?.message || '该账号已在其他浏览器登录')
+      }
+      // H5 查询页有自己的会话与错误处理，401 不硬跳转管理端登录页
+      const isH5Path = window.location.pathname.startsWith('/h5/')
+      if (window.location.pathname !== '/login' && !isH5Path) {
         window.location.href = '/login'
       }
       return Promise.reject(new Error('登录已过期，请重新登录'))

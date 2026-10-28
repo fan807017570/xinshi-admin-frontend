@@ -24,6 +24,7 @@ import {
   updateClassSubjectTeacher,
   updateExamType,
   updateHonorType,
+  updateRole,
   updateSubject
 } from '../api/school'
 
@@ -31,6 +32,7 @@ const loading = ref(false)
 const auth = useAuthStore()
 const canManageAcademicConfigs = computed(() => auth.canManageAcademicConfigs)
 const error = ref('')
+const activeTab = ref<'dict' | 'org'>('dict')
 const modalVisible = ref(false)
 const modalTitle = ref('')
 const modalError = ref('')
@@ -221,7 +223,7 @@ async function submitModal() {
   modalError.value = ''
   try {
     if (modalType.value === 'role') {
-      await createRole(form)
+      editing.value ? await updateRole(editing.value.id, form) : await createRole(form)
     } else if (modalType.value === 'term') {
       editing.value ? await updateAcademicTerm(editing.value.id, form) : await createAcademicTerm(form)
     } else if (modalType.value === 'subject') {
@@ -235,6 +237,26 @@ async function submitModal() {
     await loadData()
   } catch (err) {
     modalError.value = err instanceof Error ? err.message : '保存失败'
+  }
+}
+
+async function toggleStatus(type: typeof modalType.value, item: any, enabled: boolean) {
+  const status = enabled ? 1 : 0
+  try {
+    if (type === 'term') {
+      await updateAcademicTerm(item.id, { status })
+    } else if (type === 'subject') {
+      await updateSubject(item.id, { status })
+    } else if (type === 'honor') {
+      await updateHonorType(item.id, { status })
+    } else if (type === 'exam') {
+      await updateExamType(item.id, { status })
+    } else if (type === 'role') {
+      await updateRole(item.id, { roleName: item.roleName || item.name, status })
+    }
+    await loadData()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '状态更新失败'
   }
 }
 
@@ -263,8 +285,10 @@ async function loadGradeSubjects() {
   }
   const data = await listGradeSubjects(gradeSubjectFilter.academicTermId, gradeSubjectFilter.gradeLevel)
   gradeSubjectRows.value = rows(data)
+  // 后端返回的每一行都是该学期+年级已配置的课程，status=1 表示启用；
+  // 不能用 enabled/selected/checked/assigned 判断（后端不返回这些字段，会导致配置永远不显示）
   gradeSubjectSelected.value = gradeSubjectRows.value
-    .filter((item) => item.enabled ?? item.selected ?? item.checked ?? item.assigned)
+    .filter((item) => Number(item.status ?? 1) === 1)
     .map((item) => item.subjectId ?? item.id)
 }
 
@@ -448,6 +472,10 @@ onMounted(loadData)
         {{ loading ? '刷新中...' : '刷新' }}
       </button>
     </div>
+    <nav class="config-tabs" aria-label="配置分类">
+      <button class="config-tab" :class="{ 'config-tab--active': activeTab === 'dict' }" type="button" @click="activeTab = 'dict'">基础字典</button>
+      <button class="config-tab" :class="{ 'config-tab--active': activeTab === 'org' }" type="button" @click="activeTab = 'org'">教学组织</button>
+    </nav>
     <p v-if="error" class="error">{{ error }}</p>
     <div v-if="!canManageAcademicConfigs" class="config-readonly">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -457,7 +485,7 @@ onMounted(loadData)
       <span>当前账号只能查看配置列表，不能维护基础配置。</span>
     </div>
 
-    <section class="config-card">
+    <section class="config-card" v-show="activeTab === 'dict'">
       <div class="config-card__head">
         <div class="config-card__title-row">
           <span class="config-card__icon config-card__icon--roles">角</span>
@@ -477,7 +505,17 @@ onMounted(loadData)
               <span class="config-list__item-meta">{{ role.roleCode || role.code }}</span>
             </div>
           </div>
-          <code class="config-list__item-code">{{ role.roleCode || role.code }}</code>
+          <div class="config-list__item-extra">
+            <button
+              class="config-switch"
+              :class="{ 'config-switch--on': statusLabel(role) === '启用' }"
+              type="button"
+              :disabled="!canManageAcademicConfigs || Number(role.isProtected ?? 0) === 1"
+              :title="Number(role.isProtected ?? 0) === 1 ? '系统保护角色不可修改' : '点击切换启用状态'"
+              @click="toggleStatus('role', role, statusLabel(role) === '停用')"
+            >{{ statusLabel(role) }}</button>
+            <button class="config-btn config-btn--ghost config-btn--sm" type="button" :disabled="!canManageAcademicConfigs || Number(role.isProtected ?? 0) === 1" @click="openModal('role', role)">编辑</button>
+          </div>
         </div>
         <div v-if="roles.length === 0" class="config-empty">
           <span class="config-empty__icon">🔐</span>
@@ -486,7 +524,7 @@ onMounted(loadData)
       </div>
     </section>
 
-    <section class="config-card">
+    <section class="config-card" v-show="activeTab === 'dict'">
       <div class="config-card__head">
         <div class="config-card__title-row">
           <span class="config-card__icon config-card__icon--terms">期</span>
@@ -507,9 +545,10 @@ onMounted(loadData)
             </div>
           </div>
           <div class="config-list__item-extra">
+            <button class="config-switch" :class="{ 'config-switch--on': statusLabel(item) === '启用' }" type="button" :disabled="!canManageAcademicConfigs" @click="toggleStatus('term', item, statusLabel(item) === '停用')">{{ statusLabel(item) }}</button>
             <span class="config-tag">{{ item.termCode || item.semester || '-' }}</span>
             <span class="config-tag config-tag--muted">{{ item.academicYear || '-' }}</span>
-            <button class="config-btn config-btn--ghost config-btn--sm" type="button" @click="openModal('term', item)">编辑</button>
+            <button class="config-btn config-btn--ghost config-btn--sm" type="button" :disabled="!canManageAcademicConfigs" @click="openModal('term', item)">编辑</button>
           </div>
         </div>
         <div v-if="terms.length === 0" class="config-empty">
@@ -519,7 +558,7 @@ onMounted(loadData)
       </div>
     </section>
 
-    <section class="config-card">
+    <section class="config-card" v-show="activeTab === 'dict'">
       <div class="config-card__head">
         <div class="config-card__title-row">
           <span class="config-card__icon config-card__icon--subjects">科</span>
@@ -540,8 +579,8 @@ onMounted(loadData)
             </div>
           </div>
           <div class="config-list__item-extra">
-            <span class="config-tag" :class="{ 'config-tag--muted': Number(item.status ?? 1) === 0 }">{{ statusLabel(item) }}</span>
-            <button class="config-btn config-btn--ghost config-btn--sm" type="button" @click="openModal('subject', item)">编辑</button>
+            <button class="config-switch" :class="{ 'config-switch--on': statusLabel(item) === '启用' }" type="button" :disabled="!canManageAcademicConfigs" @click="toggleStatus('subject', item, statusLabel(item) === '停用')">{{ statusLabel(item) }}</button>
+            <button class="config-btn config-btn--ghost config-btn--sm" type="button" :disabled="!canManageAcademicConfigs" @click="openModal('subject', item)">编辑</button>
           </div>
         </div>
         <div v-if="subjects.length === 0" class="config-empty">
@@ -551,7 +590,7 @@ onMounted(loadData)
       </div>
     </section>
 
-    <section class="config-card">
+    <section class="config-card" v-show="activeTab === 'dict'">
       <div class="config-card__head">
         <div class="config-card__title-row">
           <span class="config-card__icon config-card__icon--subjects">考</span>
@@ -572,9 +611,9 @@ onMounted(loadData)
             </div>
           </div>
           <div class="config-list__item-extra">
+            <button class="config-switch" :class="{ 'config-switch--on': statusLabel(item) === '启用' }" type="button" :disabled="!canManageAcademicConfigs" @click="toggleStatus('exam', item, statusLabel(item) === '停用')">{{ statusLabel(item) }}</button>
             <span class="config-tag">顺序: {{ item.sortOrder ?? 0 }}</span>
-            <span class="config-tag" :class="{ 'config-tag--muted': statusLabel(item) === '停用' }">{{ statusLabel(item) }}</span>
-            <button class="config-btn config-btn--ghost config-btn--sm" type="button" @click="openModal('exam', item)">编辑</button>
+            <button class="config-btn config-btn--ghost config-btn--sm" type="button" :disabled="!canManageAcademicConfigs" @click="openModal('exam', item)">编辑</button>
           </div>
         </div>
         <div v-if="examTypes.length === 0" class="config-empty">
@@ -584,7 +623,7 @@ onMounted(loadData)
       </div>
     </section>
 
-    <section class="config-card">
+    <section class="config-card" v-show="activeTab === 'org'">
       <div class="config-card__head">
         <div class="config-card__title-row">
           <span class="config-card__icon config-card__icon--grade">招</span>
@@ -620,7 +659,7 @@ onMounted(loadData)
       <p class="config-hint">勾选的年级表示当前学校开设的年级，未勾选的年级将不会出现在班级管理等相关功能中。</p>
     </section>
 
-    <section class="config-card">
+    <section class="config-card" v-show="activeTab === 'org'">
       <div class="config-card__head">
         <div class="config-card__title-row">
           <span class="config-card__icon config-card__icon--grade">级</span>
@@ -658,7 +697,7 @@ onMounted(loadData)
       </div>
     </section>
 
-    <section class="config-card">
+    <section class="config-card" v-show="activeTab === 'dict'">
       <div class="config-card__head">
         <div class="config-card__title-row">
           <span class="config-card__icon config-card__icon--subjects">荣</span>
@@ -679,8 +718,8 @@ onMounted(loadData)
             </div>
           </div>
           <div class="config-list__item-extra">
-            <span class="config-tag" :class="{ 'config-tag--muted': statusLabel(item) === '停用' }">{{ statusLabel(item) }}</span>
-            <button class="config-btn config-btn--ghost config-btn--sm" type="button" @click="openModal('honor', item)">编辑</button>
+            <button class="config-switch" :class="{ 'config-switch--on': statusLabel(item) === '启用' }" type="button" :disabled="!canManageAcademicConfigs" @click="toggleStatus('honor', item, statusLabel(item) === '停用')">{{ statusLabel(item) }}</button>
+            <button class="config-btn config-btn--ghost config-btn--sm" type="button" :disabled="!canManageAcademicConfigs" @click="openModal('honor', item)">编辑</button>
           </div>
         </div>
         <div v-if="honorTypes.length === 0" class="config-empty">
@@ -690,7 +729,7 @@ onMounted(loadData)
       </div>
     </section>
 
-    <section class="config-card">
+    <section class="config-card" v-show="activeTab === 'org'">
       <div class="config-card__head">
         <div class="config-card__title-row">
           <span class="config-card__icon config-card__icon--teacher">师</span>
@@ -737,8 +776,8 @@ onMounted(loadData)
         <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="role-modal-title">
           <div class="modal-head">
             <div>
-              <p class="eyebrow">新增角色</p>
-              <h2 id="role-modal-title">录入角色信息</h2>
+              <p class="eyebrow">{{ editing ? '编辑角色' : '新增角色' }}</p>
+              <h2 id="role-modal-title">{{ editing ? '修改角色信息' : '录入角色信息' }}</h2>
             </div>
             <button class="button ghost" type="button" @click="modalVisible = false">关闭</button>
           </div>
@@ -746,11 +785,18 @@ onMounted(loadData)
             <p v-if="modalError" class="error">{{ modalError }}</p>
             <div class="config-modal__field">
               <label class="config-modal__label" for="roleCode">角色编码</label>
-              <input id="roleCode" v-model.trim="form.roleCode" class="config-input" placeholder="如 HEAD_TEACHER" required />
+              <input id="roleCode" v-model.trim="form.roleCode" class="config-input" placeholder="如 HEAD_TEACHER" :disabled="Boolean(editing)" required />
             </div>
             <div class="config-modal__field">
               <label class="config-modal__label" for="roleName">角色名称</label>
               <input id="roleName" v-model.trim="form.roleName" class="config-input" placeholder="如 班主任" required />
+            </div>
+            <div class="config-modal__field">
+              <label class="config-modal__label" for="roleStatus">状态</label>
+              <select id="roleStatus" v-model.number="form.status" class="config-input">
+                <option :value="1">启用</option>
+                <option :value="0">停用</option>
+              </select>
             </div>
             <div class="modal-actions">
               <button class="button ghost" type="button" @click="modalVisible = false">取消</button>
@@ -791,7 +837,7 @@ onMounted(loadData)
           <div class="config-modal__row">
             <div class="config-modal__field">
               <label class="config-modal__label">课程编码</label>
-              <input v-model.trim="form.subjectCode" class="config-input" placeholder="如 MATH" :disabled="Boolean(editing)" required />
+              <input v-model.trim="form.subjectCode" class="config-input" placeholder="如 MATH" required />
             </div>
             <div class="config-modal__field">
               <label class="config-modal__label">课程名称</label>
@@ -967,3 +1013,53 @@ onMounted(loadData)
     </Teleport>
   </section>
 </template>
+
+<style scoped>
+.config-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.config-tab {
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  padding: 10px 20px;
+  color: #64748b;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+}
+.config-tab:hover {
+  color: #0f766e;
+  border-color: #0f766e66;
+}
+.config-tab--active {
+  color: #fff;
+  border-color: #0f766e;
+  background: linear-gradient(135deg, #0f766e, #0f9f8e);
+  box-shadow: 0 8px 18px #0f766e2e;
+}
+.config-switch {
+  min-width: 52px;
+  border: 1px solid #dbe3ee;
+  border-radius: 999px;
+  padding: 5px 12px;
+  color: #64748b;
+  background: #f1f5f9;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .15s;
+}
+.config-switch--on {
+  color: #065f46;
+  border-color: #b7e0da;
+  background: #d1fae5;
+}
+.config-switch:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+</style>

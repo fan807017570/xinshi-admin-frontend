@@ -85,13 +85,28 @@
         </tbody>
       </table>
     </div>
+    <div class="panel">
+      <div class="panel-head"><h2>已发布考试版本报告</h2></div>
+      <p class="empty-text">每份报告的原分与等级来自同一冻结版本；未发布或已撤回的内容不展示。</p>
+      <p v-if="examReportError" role="alert">{{ examReportError }}</p>
+      <article v-for="report in examReports" :key="report.id" class="comment-card">
+        <div class="panel-head"><strong>{{ report.assessmentName }} · 结果 V{{ report.versionNo }}</strong><button class="link-btn" @click="downloadExamReport(report.id)">下载已发布报告</button></div>
+        <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>科目 / 试卷</th><th>原分 / 满分</th><th>同版本等级</th><th>有效 / 预期</th></tr></thead><tbody><tr v-for="grade in report.grades" :key="grade.subjectName+grade.paperCode"><td>{{ grade.subjectName }} · {{ grade.paperCode }}</td><td>{{ grade.resultKind==='NORMAL'?`${grade.score} / ${grade.maxScore}`:grade.resultKind==='ABSENT'?'缺考':grade.resultKind==='EXEMPT'?'免考':'未录入' }}</td><td>{{ grade.gradeLabel||'—' }}</td><td>{{ grade.effectiveCount }} / {{ grade.expectedCount }}</td></tr></tbody></table></div>
+        <p v-if="report.comment">{{ report.comment }}</p>
+      </article>
+      <p v-if="!examReports.length&&!examReportError" class="empty-text">所选学生暂无已发布考试版本报告。</p>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import * as schoolApi from '../api/school'
+import { useAuthStore } from '../stores/auth'
+import { teachingGet, teachingDownload, errorMessage } from '../api/teaching'
 
+const auth=useAuthStore()
+const parentScope=computed(()=>auth.isParent&&!auth.isSuperAdmin&&!auth.isHeadTeacher)
 type AnyRow = Record<string, any>
 const terms = ref<AnyRow[]>([])
 const classes = ref<AnyRow[]>([])
@@ -99,6 +114,8 @@ const students = ref<AnyRow[]>([])
 const scoreRows = ref<AnyRow[]>([])
 const comments = ref<AnyRow[]>([])
 const transcripts = ref<AnyRow[]>([])
+interface PublishedExamReport { id:string;assessmentName:string;versionNo:number;comment:string|null;grades:{subjectName:string;paperCode:string;score:number|null;maxScore:number;resultKind:string;gradeLabel:string|null;effectiveCount:number;expectedCount:number}[] }
+const examReports=ref<PublishedExamReport[]>([]),examReportError=ref('')
 const query = reactive({ academicTermId: '', classId: '', studentId: '' })
 
 const payload = (res: any) => res?.data?.data ?? res?.data ?? res ?? {}
@@ -117,7 +134,7 @@ const selectedStudentName = computed(() => {
 })
 
 async function loadBase() {
-  const [termRes, classRes] = await Promise.all([call('listAcademicTerms'), call('listClasses', { page: 1, size: 200 })])
+  const [termRes, classRes] = await Promise.all([call('listAcademicTerms'), parentScope.value?Promise.resolve([]):call('listClasses', { page: 1, size: 200 })])
   terms.value = rows(termRes)
   classes.value = rows(classRes)
 }
@@ -128,14 +145,20 @@ async function onClassChange() {
 }
 async function loadStudents() {
   const params: AnyRow = { page: 1, size: 500 }
-  if (query.classId) params.classId = query.classId
-  students.value = rows(await call('listStudents', params))
+  if (query.classId&&!parentScope.value) params.classId = query.classId
+  const permitted=rows(await call('listStudents', params))
+  if(parentScope.value){
+    classes.value=Array.from(new Map(permitted.filter(student=>student.classId).map(student=>[String(student.classId),{id:student.classId,className:student.className||'学生所在班级'}])).values())
+    students.value=permitted.filter(student=>!query.classId||String(student.classId)===String(query.classId))
+  }else students.value=permitted
 }
 async function loadStudentData() {
   if (!query.studentId) {
     scoreRows.value = []
     comments.value = []
     transcripts.value = []
+    examReports.value = []
+    examReportError.value = ''
     return
   }
   const params = { academicTermId: query.academicTermId || undefined, studentId: query.studentId }
@@ -147,6 +170,8 @@ async function loadStudentData() {
   scoreRows.value = rows(scoreRes)
   comments.value = rows(commentRes)
   transcripts.value = rows(transcriptRes)
+  examReportError.value=''
+  try { examReports.value=await teachingGet<PublishedExamReport[]>('/parent/reports',{studentId:query.studentId}) } catch(error) { examReports.value=[];examReportError.value=errorMessage(error) }
 }
 async function loadAll() {
   await loadBase()
@@ -165,6 +190,7 @@ async function download(item: AnyRow) {
   link.click()
   URL.revokeObjectURL(url)
 }
+async function downloadExamReport(id:string) { try { await teachingDownload(`/parent/reports/${id}/file`,`考试报告-${id}.pdf`) } catch(error) { examReportError.value=errorMessage(error) } }
 onMounted(loadAll)
 </script>
 
@@ -243,5 +269,21 @@ select:focus, input:focus { border-color: #0f766e; outline: 3px solid #14b8a629;
 @media (max-width: 900px) {
   .filter-grid, .metric-grid { grid-template-columns: 1fr; }
   .page-hero { align-items: flex-start; flex-direction: column; }
+}
+
+/* Parent report tables keep their overflow inside this route. */
+.parents-page, .panel, .comment-card { min-width: 0; }
+select, input { width:100%; min-width:0; }
+.panel-head { gap:12px; flex-wrap:wrap; }
+:global(.app-shell .main:has(.parents-page)) { min-width:0; }
+@media(max-width:760px) {
+  :global(.app-shell:has(.parents-page)) { grid-template-columns:minmax(0,1fr)!important; }
+  :global(.app-shell:has(.parents-page) .sidebar) { position:static; width:auto; height:auto; padding:12px; }
+  :global(.app-shell:has(.parents-page) .sidebar-logo) { width:38px; height:38px; }
+  :global(.app-shell:has(.parents-page) .nav) { display:flex; overflow-x:auto; gap:4px; }
+  :global(.app-shell:has(.parents-page) .nav a) { flex:0 0 auto; white-space:nowrap; min-height:44px; padding:8px 10px; font-size:12px; }
+  :global(.app-shell:has(.parents-page) .sidebar-resize-handle) { display:none; }
+  :global(.app-shell .main:has(.parents-page)) { padding:12px; width:100%; }
+  .parents-page .link-btn { min-height:44px; }
 }
 </style>

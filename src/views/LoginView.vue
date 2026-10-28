@@ -5,12 +5,19 @@ import { useAuthStore } from '../stores/auth'
 import { useErrorStore } from '../stores/error'
 import logoUrl from '../assets/xinshi_logo.png'
 
+const KICK_STORAGE_KEY = 'login-kick-reason'
+
 const router = useRouter()
 const auth = useAuthStore()
 const errorStore = useErrorStore()
 const form = reactive({ loginName: '', password: '' })
 const showPassword = ref(false)
 const submitting = ref(false)
+// 被顶下线提示：读取一次即清除，避免刷新后重复展示
+const kickNotice = ref(sessionStorage.getItem(KICK_STORAGE_KEY) || '')
+if (kickNotice.value) {
+  sessionStorage.removeItem(KICK_STORAGE_KEY)
+}
 
 async function submit() {
   if (submitting.value) {
@@ -30,6 +37,14 @@ async function submit() {
 
 <template>
   <main class="login-page">
+    <div v-if="kickNotice" class="login-kick-notice" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+      </svg>
+      <span>{{ kickNotice }}，如需继续请重新登录。</span>
+    </div>
     <section class="login-brand">
       <div class="login-brand__content">
         <img class="login-brand__logo" :src="logoUrl" alt="新实中学" />
@@ -114,3 +129,25 @@ async function submit() {
     </section>
   </main>
 </template>
+
+<style scoped>
+.login-kick-notice {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  padding: 12px 18px;
+  color: #92400e;
+  background: #fef3c7;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 12px 32px #0f172a26;
+}
+</style>

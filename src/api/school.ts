@@ -47,6 +47,7 @@ export const login = (payload: { loginName: string; password: string }) =>
   http.post<LoginResponse>('/auth/login', payload).then((res) => res.data)
 
 export const getCurrentUser = () => http.get<LoginResponse>('/auth/me').then((res) => res.data)
+export const getSessionStatus = () => http.get('/auth/session-status').then((res) => res.data)
 export const logout = () => http.post('/auth/logout').then((res) => res.data)
 export const updateProfile = (payload: unknown) => http.put('/auth/profile', payload).then((res) => res.data)
 export const getDashboardSummary = () => http.get('/dashboard/summary').then((res) => res.data)
@@ -65,6 +66,8 @@ export const updateUserRoles = (id: string | number, roleCodes: string[]) =>
 export const listRoles = () => http.get('/roles').then((res) => res.data)
 export const listMenus = () => http.get('/menus').then((res) => res.data)
 export const createRole = (payload: unknown) => http.post('/roles', payload).then((res) => res.data)
+export const updateRole = (id: string | number, payload: unknown) =>
+  http.put(`/roles/${id}`, payload).then((res) => res.data)
 
 export const listAcademicTerms = () => http.get('/academic-terms').then((res) => res.data)
 export const createAcademicTerm = (payload: unknown) => http.post('/academic-terms', payload).then((res) => res.data)
@@ -115,6 +118,10 @@ export const deleteStudent = (id: string | number) => http.delete(`/students/${i
 
 export const listStudentResults = (params: QueryParams = {}, signal?: AbortSignal) =>
   http.get('/student-results', { params, signal }).then((res) => res.data)
+export const getClassStatsReport = (params: QueryParams = {}) =>
+  http.get('/class-stats/report', { params }).then((res) => res.data)
+export const getClassStatsCompare = (params: QueryParams = {}) =>
+  http.get('/class-stats/compare', { params }).then((res) => res.data)
 export const listTeacherScoreEntries = (params: QueryParams = {}) =>
   http.get('/teacher-score-entries', { params }).then((res) => res.data)
 export const saveStudentResult = (payload: unknown) => http.post('/student-results', payload).then((res) => res.data)

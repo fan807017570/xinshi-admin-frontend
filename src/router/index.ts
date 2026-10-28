@@ -51,6 +51,20 @@ const router = createRouter({
     { path: '/users', name: 'users', component: UsersView, meta: { requiresAuth: true, menuKey: 'users' } },
     { path: '/config', name: 'config', component: ConfigView, meta: { requiresAuth: true, menuKey: 'config' } },
     { path: '/classes', name: 'classes', component: ClassesView, meta: { requiresAuth: true, menuKey: 'classes' } },
+    {
+      path: '/teaching',
+      component: () => import('../views/teaching/TeachingWorkspaceView.vue'),
+      meta: { requiresAuth: true, menuKey: 'teaching' },
+      children: [
+        { path: '', redirect: '/teaching/course-selection' },
+        { path: 'course-selection', name: 'teaching-course-selection', component: () => import('../views/teaching/CourseSelectionView.vue') },
+        { path: 'report-jobs', name: 'teaching-report-jobs', component: () => import('../views/teaching/ReportJobsView.vue') },
+        { path: 'assessments', name: 'teaching-assessments', component: () => import('../views/teaching/AssessmentsView.vue') },
+        { path: 'comments', name: 'teaching-comments', component: () => import('../views/teaching/TeachingCommentsView.vue') },
+        { path: 'research', name: 'teaching-research', component: () => import('../views/teaching/ResearchView.vue') },
+        { path: 'teachers', name: 'teaching-teachers', component: () => import('../views/teaching/TeachingTeachersView.vue') }
+      ]
+    },
     { path: '/students', name: 'students', component: StudentsView, meta: { requiresAuth: true, menuKey: 'students' } },
     { path: '/scores', name: 'scores', component: ScoresView, meta: { requiresAuth: true, menuKey: 'scores' } },
     { path: '/classStats', name: 'classStats', component: ClassStatsView, meta: { requiresAuth: true, menuKey: 'classStats' } },

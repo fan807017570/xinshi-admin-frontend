@@ -1,8 +1,8 @@
 <template>
   <section class="scores-page page">
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">Teaching</p>
+    <header class="academic-page-header scores-page-header">
+      <div class="academic-page-header__copy">
+        <p class="eyebrow">教务工作流 · 02</p>
         <h1>成绩管理</h1>
         <p class="lead">{{ teacherMode ? '任课老师可以按学生、科目和学期录入与维护自己负责课程的成绩。' : '默认聚焦当前学生的数学成绩，班主任可以录入、修改各科成绩和班主任评价。' }}</p>
         <div v-if="auth.isDualRoleTeacher" class="workspace-tabs">
@@ -20,8 +20,14 @@
           >班主任工作台</button>
         </div>
       </div>
-      <button class="button" type="button" :disabled="loading" @click="loadPage">刷新</button>
+      <div class="score-header-status" aria-live="polite">
+        <span>当前工作台</span>
+        <strong>{{ teacherMode ? '任课教师' : '班主任' }}</strong>
+      </div>
+      <button class="button ghost" type="button" :disabled="loading" @click="loadPage">{{ loading ? '刷新中…' : '刷新数据' }}</button>
     </header>
+
+    <AcademicWorkflowNav current="scores" :context="workflowContext" :context-text="workflowContextText" />
 
     <!-- ===== SUBJECT TEACHER WORKBENCH ===== -->
     <template v-if="teacherMode">
@@ -37,31 +43,31 @@
           </div>
         </div>
         <form class="card-form compact score-query-form" @submit.prevent="searchTeacherEntries">
-          <select id="teacher-term" v-model="teacherQuery.academicTermId" @change="onTeacherTermChange">
+          <label class="score-query-field score-query-field--term"><span>学期</span><select id="teacher-term" v-model="teacherQuery.academicTermId" @change="onTeacherTermChange">
             <option value="">学期</option>
             <option v-for="term in terms" :key="term.id" :value="String(term.id)">{{ term.termName || term.name }}</option>
-          </select>
-          <select id="teacher-session" v-model="teacherQuery.gradeSession" @change="onTeacherSessionChange">
+          </select></label>
+          <label class="score-query-field score-query-field--session"><span>届次</span><select id="teacher-session" v-model="teacherQuery.gradeSession" @change="onTeacherSessionChange">
             <option value="">届次</option>
             <option v-for="session in gradeSessions" :key="session" :value="session">{{ session }}届</option>
-          </select>
-          <select id="teacher-grade" v-model="teacherQuery.gradeLevel" @change="onTeacherGradeChange">
+          </select></label>
+          <label class="score-query-field score-query-field--grade"><span>年级</span><select id="teacher-grade" v-model="teacherQuery.gradeLevel" @change="onTeacherGradeChange">
             <option value="">年级</option>
             <option v-for="level in availableGradeLevels(teacherQuery.gradeSession)" :key="level" :value="String(level)">{{ gradeLevelLabel(level) }}</option>
-          </select>
-          <select id="teacher-class" v-model="teacherQuery.classId" @change="onTeacherClassChange">
+          </select></label>
+          <label class="score-query-field score-query-field--class"><span>班级</span><select id="teacher-class" v-model="teacherQuery.classId" @change="onTeacherClassChange">
             <option value="">班级</option>
             <option v-for="klass in classes" :key="klass.id" :value="String(klass.id)">{{ klass.className || klass.name }}</option>
-          </select>
-          <select id="teacher-subject" v-model="teacherQuery.subjectId" @change="clearTeacherResults">
+          </select></label>
+          <label class="score-query-field score-query-field--subject"><span>科目</span><select id="teacher-subject" v-model="teacherQuery.subjectId" @change="clearTeacherResults">
             <option value="">科目</option>
             <option v-for="subject in teacherSubjects" :key="subject.subjectId || subject.id" :value="String(subject.subjectId || subject.id)">{{ subject.subjectName || subject.name }}</option>
-          </select>
-          <select id="teacher-exam" v-model="teacherQuery.examTypeId" @change="clearTeacherResults">
+          </select></label>
+          <label class="score-query-field score-query-field--exam"><span>考试类型</span><select id="teacher-exam" v-model="teacherQuery.examTypeId" @change="clearTeacherResults">
             <option value="">考试类型</option>
             <option v-for="type in examTypes" :key="type.id" :value="String(type.id)">{{ type.examTypeName || type.name }}</option>
-          </select>
-          <input class="score-query-keyword" v-model.trim="teacherKeyword" type="search" placeholder="输入学生姓名或学号自动查询" @input="onTeacherKeywordInput" />
+          </select></label>
+          <label class="score-query-field score-query-keyword"><span>学生</span><input v-model.trim="teacherKeyword" type="search" placeholder="输入姓名或学号" @input="onTeacherKeywordInput" /></label>
           <button class="button primary score-query-submit" type="submit">查询</button>
         </form>
         <p v-if="teacherContextError" class="context-error">{{ teacherContextError }}</p>
@@ -193,31 +199,31 @@
           <div class="action-group"><button class="button ghost" type="button" @click="resetHeadTeacherQuery">重置</button></div>
         </div>
         <form class="card-form compact score-query-form" @submit.prevent="searchHeadTeacherScores">
-          <select id="head-term" v-model="headTeacherQuery.academicTermId" @change="onHeadTeacherTermChange">
+          <label class="score-query-field score-query-field--term"><span>学期</span><select id="head-term" v-model="headTeacherQuery.academicTermId" @change="onHeadTeacherTermChange">
             <option value="">学期</option>
             <option v-for="term in terms" :key="term.id" :value="String(term.id)">{{ term.termName || term.name }}</option>
-          </select>
-          <select id="head-session" v-model="headTeacherQuery.gradeSession" @change="onHeadTeacherSessionChange">
+          </select></label>
+          <label class="score-query-field score-query-field--session"><span>届次</span><select id="head-session" v-model="headTeacherQuery.gradeSession" @change="onHeadTeacherSessionChange">
             <option value="">届次</option>
             <option v-for="session in gradeSessions" :key="session" :value="session">{{ session }}届</option>
-          </select>
-          <select id="head-grade" v-model="headTeacherQuery.gradeLevel" @change="onHeadTeacherGradeChange">
+          </select></label>
+          <label class="score-query-field score-query-field--grade"><span>年级</span><select id="head-grade" v-model="headTeacherQuery.gradeLevel" @change="onHeadTeacherGradeChange">
             <option value="">年级</option>
             <option v-for="level in availableGradeLevels(headTeacherQuery.gradeSession)" :key="level" :value="String(level)">{{ gradeLevelLabel(level) }}</option>
-          </select>
-          <select id="head-class" v-model="headTeacherQuery.classId" @change="onHeadTeacherClassChange">
+          </select></label>
+          <label class="score-query-field score-query-field--class"><span>班级</span><select id="head-class" v-model="headTeacherQuery.classId" @change="onHeadTeacherClassChange">
             <option value="">班级</option>
             <option v-for="klass in classes" :key="klass.id" :value="String(klass.id)">{{ klass.className || klass.name }}</option>
-          </select>
-          <select id="head-subject" v-model="headTeacherGradeSubjectId">
+          </select></label>
+          <label class="score-query-field score-query-field--subject"><span>成绩科目</span><select id="head-subject" v-model="headTeacherGradeSubjectId">
             <option value="">成绩科目（导出成绩模版用）</option>
             <option v-for="subject in headTeacherSubjects" :key="subject.subjectId || subject.id" :value="String(subject.subjectId || subject.id)">{{ subject.subjectName || subject.name }}</option>
-          </select>
-          <select id="head-exam" v-model="headTeacherQuery.examTypeId" @change="clearHeadTeacherDetails">
+          </select></label>
+          <label class="score-query-field score-query-field--exam"><span>考试类型</span><select id="head-exam" v-model="headTeacherQuery.examTypeId" @change="clearHeadTeacherDetails">
             <option value="">考试类型</option>
             <option v-for="type in examTypes" :key="type.id" :value="String(type.id)">{{ type.examTypeName || type.name }}</option>
-          </select>
-          <div class="student-search score-query-keyword">
+          </select></label>
+          <label class="score-query-field score-query-keyword"><span>学生</span><div class="student-search">
             <input
               v-model.trim="studentKeyword"
               type="search"
@@ -239,7 +245,7 @@
               </button>
               <p v-if="!studentSuggestions.length">没有匹配的学生</p>
             </div>
-          </div>
+          </div></label>
           <button class="button primary score-query-submit" type="submit">查询</button>
         </form>
         <p v-if="headTeacherContextError" class="context-error">{{ headTeacherContextError }}</p>
@@ -272,8 +278,9 @@
             </div>
             <div v-if="auth.canManageScores" class="action-group">
               <button class="button primary" type="button" @click="openScoreModal(null)">新增成绩</button>
+              <button class="button" type="button" @click="goTranscripts">成绩单管理</button>
               <button class="button" type="button" :disabled="downloadingTranscript" @click="downloadHeadTeacherTranscript">
-                {{ downloadingTranscript ? '生成并下载中...' : '成绩单下载' }}
+                {{ downloadingTranscript ? '生成并下载中...' : '生成并下载' }}
               </button>
             </div>
           </div>
@@ -411,18 +418,14 @@
             </div>
           </div>
           <div v-if="achievements.length > 0">
-            <div
-              v-for="item in achievements"
-              :key="item.id"
-              style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; margin-bottom:8px"
-            >
-              <div style="flex:1; min-width:0">
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
-                  <span v-if="item.honorTypeName" style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; background:#dbeafe; color:#1e40af; border-radius:6px; font-size:11px; font-weight:700; white-space:nowrap">{{ item.honorTypeName }}</span>
-                  <span style="font-size:14px; color:#0f172a; word-break:break-all">{{ item.achievementText || '-' }}</span>
+            <div v-for="item in achievements" :key="item.id" class="achievement-row">
+              <div class="achievement-row__content">
+                <div class="achievement-row__summary">
+                  <span v-if="item.honorTypeName" class="achievement-type">{{ item.honorTypeName }}</span>
+                  <span class="achievement-text">{{ item.achievementText || '-' }}</span>
                 </div>
               </div>
-              <div v-if="auth.canManageScores" style="display:flex; gap:6px; flex-shrink:0">
+              <div v-if="auth.canManageScores" class="achievement-row__actions">
                 <button class="button ghost sm" type="button" @click="openAchievementModal(item)">编辑</button>
                 <button class="button ghost danger sm" type="button" @click="removeAchievement(item.id)">删除</button>
               </div>
@@ -493,21 +496,21 @@
                 <span>课程表现</span>
                 <div class="textarea-with-polish">
                   <textarea v-model="scoreForm.performanceComment" rows="3" placeholder="描述这个科目的课堂表现、作业完成情况等"></textarea>
-                  <button class="polish-btn" type="button" :disabled="polishingField === 'performanceComment'" @click="doPolish('performanceComment', scoreForm.performanceComment, scoreForm, 'performanceComment')" :title="polishingField === 'performanceComment' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'performanceComment' ? '⏳' : '🤖' }}</button>
+                  <button class="polish-btn" type="button" :disabled="polishingField === 'performanceComment'" @click="doPolish('performanceComment', scoreForm.performanceComment, scoreForm, 'performanceComment')" :title="polishingField === 'performanceComment' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'performanceComment' ? '…' : 'AI' }}</button>
                 </div>
               </label>
               <label class="full">
                 <span>做得好的地方</span>
                 <div class="textarea-with-polish">
                   <textarea v-model="scoreForm.strengths" rows="3" placeholder="写下这个科目表现好的地方"></textarea>
-                  <button class="polish-btn" type="button" :disabled="polishingField === 'strengths'" @click="doPolish('strengths', scoreForm.strengths, scoreForm, 'strengths')" :title="polishingField === 'strengths' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'strengths' ? '⏳' : '🤖' }}</button>
+                  <button class="polish-btn" type="button" :disabled="polishingField === 'strengths'" @click="doPolish('strengths', scoreForm.strengths, scoreForm, 'strengths')" :title="polishingField === 'strengths' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'strengths' ? '…' : 'AI' }}</button>
                 </div>
               </label>
               <label class="full">
                 <span>需要改进的点</span>
                 <div class="textarea-with-polish">
                   <textarea v-model="scoreForm.improvementPoints" rows="3" placeholder="写下这个科目需要改进的地方"></textarea>
-                  <button class="polish-btn" type="button" :disabled="polishingField === 'improvementPoints'" @click="doPolish('improvementPoints', scoreForm.improvementPoints, scoreForm, 'improvementPoints')" :title="polishingField === 'improvementPoints' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'improvementPoints' ? '⏳' : '🤖' }}</button>
+                  <button class="polish-btn" type="button" :disabled="polishingField === 'improvementPoints'" @click="doPolish('improvementPoints', scoreForm.improvementPoints, scoreForm, 'improvementPoints')" :title="polishingField === 'improvementPoints' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'improvementPoints' ? '…' : 'AI' }}</button>
                 </div>
               </label>
             </div>
@@ -552,21 +555,21 @@
                 <span>总体评价</span>
                 <div class="textarea-with-polish">
                   <textarea v-model="overallCommentForm.overallComment" rows="4" placeholder="班主任对学生的总体评价"></textarea>
-                  <button class="polish-btn" type="button" :disabled="polishingField === 'overallComment'" @click="doPolish('overallComment', overallCommentForm.overallComment, overallCommentForm, 'overallComment')" :title="polishingField === 'overallComment' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'overallComment' ? '⏳' : '🤖' }}</button>
+                  <button class="polish-btn" type="button" :disabled="polishingField === 'overallComment'" @click="doPolish('overallComment', overallCommentForm.overallComment, overallCommentForm, 'overallComment')" :title="polishingField === 'overallComment' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'overallComment' ? '…' : 'AI' }}</button>
                 </div>
               </label>
               <label class="full">
                 <span>做得好的地方</span>
                 <div class="textarea-with-polish">
                   <textarea v-model="overallCommentForm.strengths" rows="3" placeholder="班主任对学生整体表现中的优点"></textarea>
-                  <button class="polish-btn" type="button" :disabled="polishingField === 'overallStrengths'" @click="doPolish('overallStrengths', overallCommentForm.strengths, overallCommentForm, 'strengths')" :title="polishingField === 'overallStrengths' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'overallStrengths' ? '⏳' : '🤖' }}</button>
+                  <button class="polish-btn" type="button" :disabled="polishingField === 'overallStrengths'" @click="doPolish('overallStrengths', overallCommentForm.strengths, overallCommentForm, 'strengths')" :title="polishingField === 'overallStrengths' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'overallStrengths' ? '…' : 'AI' }}</button>
                 </div>
               </label>
               <label class="full">
                 <span>需要改进的点</span>
                 <div class="textarea-with-polish">
                   <textarea v-model="overallCommentForm.improvementPoints" rows="3" placeholder="班主任对学生整体表现中的改进建议"></textarea>
-                  <button class="polish-btn" type="button" :disabled="polishingField === 'overallImprovementPoints'" @click="doPolish('overallImprovementPoints', overallCommentForm.improvementPoints, overallCommentForm, 'improvementPoints')" :title="polishingField === 'overallImprovementPoints' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'overallImprovementPoints' ? '⏳' : '🤖' }}</button>
+                  <button class="polish-btn" type="button" :disabled="polishingField === 'overallImprovementPoints'" @click="doPolish('overallImprovementPoints', overallCommentForm.improvementPoints, overallCommentForm, 'improvementPoints')" :title="polishingField === 'overallImprovementPoints' ? 'AI 润色中...' : 'AI 润色评语'">{{ polishingField === 'overallImprovementPoints' ? '…' : 'AI' }}</button>
                 </div>
               </label>
             </div>
@@ -602,20 +605,20 @@
                 <strong>{{ currentTermName }}</strong>
               </div>
             </div>
-            <div style="display:grid; gap:14px">
-              <div>
-                <label style="display:block; font-size:13px; font-weight:600; color:#334155; margin-bottom:6px">荣誉类型</label>
-                <select v-model="achievementForm.honorTypeId">
+            <div class="achievement-form-fields">
+              <div class="achievement-field">
+                <label for="achievement-type">荣誉类型</label>
+                <select id="achievement-type" v-model="achievementForm.honorTypeId">
                   <option value="">请选择荣誉类型（可选）</option>
                   <option v-for="type in honorTypes" :key="type.id" :value="String(type.id)">{{ type.honorTypeName || type.name }}</option>
                 </select>
               </div>
-              <div>
-                <label style="display:block; font-size:13px; font-weight:600; color:#334155; margin-bottom:6px">荣誉详细内容</label>
-                <textarea v-model="achievementForm.achievementText" rows="3" placeholder="描述该荣誉的具体内容..."></textarea>
+              <div class="achievement-field">
+                <label for="achievement-content">荣誉详细内容</label>
+                <textarea id="achievement-content" v-model="achievementForm.achievementText" rows="3" placeholder="描述该荣誉的具体内容..."></textarea>
               </div>
             </div>
-            <div class="modal-actions" style="margin-top:16px">
+            <div class="modal-actions achievement-actions">
               <button class="button ghost sm" type="button" @click="closeAchievementModal">取消</button>
               <button class="button primary sm" type="submit" :disabled="achievementSaving">{{ achievementSaving ? '保存中...' : '保存荣誉' }}</button>
             </div>
@@ -653,7 +656,7 @@
               <div><strong>AI 润色评语</strong><small>预校验时自动优化总体评价、优点和改进点的文字表达</small></div>
             </label>
 
-            <div v-if="importError" class="import-error-banner"><span>⚠️ {{ importError }}</span></div>
+            <div v-if="importError" class="import-error-banner"><span>导入校验失败：{{ importError }}</span></div>
 
             <div>
               <p class="import-file-label">选择 Excel 文件（.xlsx）</p>
@@ -661,12 +664,12 @@
                 <button class="button" type="button" @click="importFileInput?.click()">选择文件</button>
                 <span v-if="importSelectedFile" class="import-file-name">{{ importSelectedFile.name }}</span>
                 <span v-else class="import-file-empty">未选择文件</span>
-                <input ref="importFileInput" type="file" accept=".xlsx" @change="onImportFileSelected" style="display:none" />
+                <input ref="importFileInput" class="visually-hidden-file" type="file" accept=".xlsx" @change="onImportFileSelected" />
               </div>
               <small v-if="importFieldErrors.file" class="field-error">{{ importFieldErrors.file }}</small>
             </div>
 
-            <p v-if="importLoading" class="import-loading">⏳ {{ importStep === 3 ? '正在提交，文件将整体成功或整体回滚...' : '正在解析并预校验文件...' }}</p>
+            <p v-if="importLoading" class="import-loading">{{ importStep === 3 ? '正在提交，文件将整体成功或整体回滚...' : '正在解析并预校验文件...' }}</p>
 
             <div v-if="importResult" class="import-result-card">
               <p class="import-result-title">{{ importCommitted ? '导入完成' : '预校验结果' }}</p>
@@ -714,7 +717,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import AcademicWorkflowNav from '../components/AcademicWorkflowNav.vue'
 import DownloadProgress from '../components/DownloadProgress.vue'
 import * as schoolApi from '../api/school'
 import { useAuthStore } from '../stores/auth'
@@ -725,6 +729,7 @@ type AnyRow = Record<string, any>
 const auth = useAuthStore()
 const errorStore = useErrorStore()
 const route = useRoute()
+const router = useRouter()
 
 // ---- Workspace Tab ----
 const workspaceTab = ref<'teacher' | 'headTeacher'>('headTeacher')
@@ -996,6 +1001,35 @@ const selectedStudent = computed(() => {
   if (!headTeacherQuery.studentId) return null
   return allStudents.value.find((s) => String(s.id) === String(headTeacherQuery.studentId)) || null
 })
+
+const workflowContext = computed(() => {
+  const activeQuery = teacherMode.value ? teacherQuery : headTeacherQuery
+  return {
+    academicTermId: activeQuery.academicTermId,
+    gradeSession: activeQuery.gradeSession,
+    gradeLevel: activeQuery.gradeLevel,
+    classId: activeQuery.classId,
+    studentId: teacherMode.value ? '' : headTeacherQuery.studentId,
+    examTypeId: activeQuery.examTypeId
+  }
+})
+
+const workflowContextText = computed(() => {
+  const activeQuery = teacherMode.value ? teacherQuery : headTeacherQuery
+  const parts = [
+    optionName(terms.value, activeQuery.academicTermId, ['id'], ['termName', 'name']),
+    activeQuery.gradeSession ? `${activeQuery.gradeSession}届` : '',
+    optionName(classes.value, activeQuery.classId, ['id'], ['className', 'name']),
+    !teacherMode.value && selectedStudent.value
+      ? String(selectedStudent.value.studentName || selectedStudent.value.name || '')
+      : ''
+  ].filter((item) => item && item !== '未选择')
+  return parts.length ? parts.join(' / ') : '尚未选择教务范围'
+})
+
+function goTranscripts() {
+  router.push({ path: '/transcripts', query: workflowContext.value })
+}
 
 const currentTermName = computed(() => {
   const term = terms.value.find((t) => String(t.id) === String(headTeacherQuery.academicTermId))
@@ -1989,21 +2023,24 @@ function defaultGradeSession(mode: 'teacher' | 'headTeacher') {
 }
 
 function initFromRoute() {
-  const routeAcademicTermId = route.query.academicTermId as string
-  const routeGradeSession = route.query.gradeSession as string
-  const routeGradeLevel = route.query.gradeLevel as string
-  const routeClassId = route.query.classId as string
-  const routeStudentId = route.query.studentId as string
+  const routeAcademicTermId = String(route.query.academicTermId || '')
+  const routeGradeSession = String(route.query.gradeSession || '')
+  const routeGradeLevel = String(route.query.gradeLevel || '')
+  const routeClassId = String(route.query.classId || '')
+  const routeStudentId = String(route.query.studentId || '')
+  const routeExamTypeId = String(route.query.examTypeId || '')
 
-  if (routeAcademicTermId) headTeacherQuery.academicTermId = routeAcademicTermId
-  if (routeGradeSession) headTeacherQuery.gradeSession = routeGradeSession
-  if (routeGradeLevel) headTeacherQuery.gradeLevel = routeGradeLevel
-  if (routeClassId) headTeacherQuery.classId = routeClassId
-  if (routeStudentId) {
-    headTeacherQuery.studentId = routeStudentId
-    // Switch to head teacher workspace when coming from student list
+  if (routeStudentId && auth.isHeadTeacher) {
     workspaceTab.value = 'headTeacher'
   }
+
+  const targetQuery = teacherMode.value ? teacherQuery : headTeacherQuery
+  if (routeAcademicTermId) targetQuery.academicTermId = routeAcademicTermId
+  if (routeGradeSession) targetQuery.gradeSession = routeGradeSession
+  if (routeGradeLevel) targetQuery.gradeLevel = routeGradeLevel
+  if (routeClassId) targetQuery.classId = routeClassId
+  if (routeExamTypeId) targetQuery.examTypeId = routeExamTypeId
+  if (!teacherMode.value && routeStudentId) headTeacherQuery.studentId = routeStudentId
 }
 
 async function loadPage() {
@@ -2072,7 +2109,7 @@ onMounted(() => {
 
 // Watch route query changes and re-initialize
 watch(
-  () => [route.query.classId, route.query.studentId, route.query.academicTermId, route.query.gradeSession, route.query.gradeLevel],
+  () => [route.query.classId, route.query.studentId, route.query.academicTermId, route.query.gradeSession, route.query.gradeLevel, route.query.examTypeId],
   () => {
     initFromRoute()
     loadPage()
@@ -2091,6 +2128,65 @@ watch(
 
 .scores-page > * {
   min-width: 0;
+}
+
+.academic-page-header {
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 8px 2px 20px;
+}
+
+.academic-page-header h1 {
+  color: #0f172a;
+  font-size: clamp(28px, 3vw, 38px);
+  letter-spacing: -.035em;
+  line-height: 1.1;
+  margin: 7px 0 0;
+}
+
+.academic-page-header .lead {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 9px;
+  max-width: 760px;
+}
+
+.score-header-status {
+  border-left: 1px solid #e2e8f0;
+  display: grid;
+  gap: 3px;
+  min-width: 112px;
+  padding-left: 18px;
+}
+
+.score-header-status span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.score-header-status strong {
+  color: #0f766e;
+  font-size: 14px;
+}
+
+.scores-page > .panel {
+  border-color: #e2e8f0;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .045);
+}
+
+.scores-page .panel-head h2 {
+  color: #0f172a;
+  margin: 0;
+}
+
+.scores-page .panel-head .hint {
+  line-height: 1.55;
+  margin-top: 6px;
 }
 
 .filters {
@@ -2112,18 +2208,24 @@ watch(
   min-width: 0;
 }
 
-.score-query-form #teacher-term,
-.score-query-form #head-term { grid-area: term; }
-.score-query-form #teacher-session,
-.score-query-form #head-session { grid-area: session; }
-.score-query-form #teacher-grade,
-.score-query-form #head-grade { grid-area: grade; }
-.score-query-form #teacher-class,
-.score-query-form #head-class { grid-area: class; }
-.score-query-form #teacher-subject,
-.score-query-form #head-subject { grid-area: subject; }
-.score-query-form #teacher-exam,
-.score-query-form #head-exam { grid-area: exam; }
+.score-query-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.score-query-field > span {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.score-query-field--term { grid-area: term; }
+.score-query-field--session { grid-area: session; }
+.score-query-field--grade { grid-area: grade; }
+.score-query-field--class { grid-area: class; }
+.score-query-field--subject { grid-area: subject; }
+.score-query-field--exam { grid-area: exam; }
 
 .score-query-keyword {
   grid-area: keyword;
@@ -2131,6 +2233,11 @@ watch(
 
 .score-query-form .student-search {
   min-width: 0;
+}
+
+.score-query-form input,
+.score-query-form select {
+  min-height: 42px;
 }
 
 .score-query-submit {
@@ -2169,6 +2276,37 @@ watch(
 .batch-panel h2,
 .batch-panel p {
   margin: 0;
+}
+
+.achievement-row {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 11px 14px;
+}
+
+.achievement-row__content { flex: 1; min-width: 0; }
+.achievement-row__summary { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.achievement-type { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; color: #1e40af; font-size: 11px; font-weight: 700; padding: 2px 8px; white-space: nowrap; }
+.achievement-text { color: #0f172a; font-size: 14px; overflow-wrap: anywhere; }
+.achievement-row__actions { display: flex; flex-shrink: 0; gap: 6px; }
+.achievement-form-fields { display: grid; gap: 14px; }
+.achievement-field { display: grid; gap: 6px; }
+.achievement-field label { color: #334155; font-size: 13px; font-weight: 600; }
+.achievement-actions { margin-top: 16px; }
+.visually-hidden-file {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 .batch-context {
@@ -2346,6 +2484,20 @@ watch(
 }
 
 @media (max-width: 1100px) {
+  .academic-page-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .score-header-status {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .academic-page-header > .button {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
   .score-query-form.card-form.compact {
     grid-template-areas:
       "term session"
@@ -2368,6 +2520,29 @@ watch(
 }
 
 @media (max-width: 760px) {
+  .academic-page-header {
+    align-items: start;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .score-header-status,
+  .academic-page-header > .button {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .score-header-status {
+    border-left: 0;
+    border-top: 1px solid #e2e8f0;
+    padding: 12px 0 0;
+  }
+
+  .academic-page-header > .button {
+    min-height: 44px;
+    width: 100%;
+  }
+
   .filters { grid-template-columns: 1fr; }
   .batch-panel { align-items: stretch; flex-direction: column; }
   .batch-actions { justify-content: stretch; }
@@ -2386,8 +2561,11 @@ watch(
   }
   .score-query-submit {
     justify-self: stretch;
+    min-height: 44px;
     width: 100%;
   }
+  .score-query-field input,
+  .score-query-field select { font-size: 16px; min-height: 44px; }
   .score-form-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2406,6 +2584,8 @@ watch(
   }
   .import-steps { grid-template-columns: 1fr; }
   .pagination-buttons { flex-wrap: wrap; }
+  .achievement-row { align-items: stretch; flex-direction: column; }
+  .achievement-row__actions .button { flex: 1; min-height: 40px; }
 }
 
 /* Import error banner */
@@ -2459,5 +2639,11 @@ watch(
   color: #dc2626;
   padding: 4px 0;
   border-bottom: 1px solid #fee2e2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scores-page *,
+  .scores-page *::before,
+  .scores-page *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 </style>

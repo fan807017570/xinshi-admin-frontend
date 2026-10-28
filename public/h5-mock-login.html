@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>H5 Mock 登录</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 420px; margin: 60px auto; padding: 0 16px; color: #2b2a24; }
+    code { background: #f0ead8; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>H5 Mock 登录（仅开发用）</h1>
+  <p>本页写入 mock 会话 Cookie 后跳转到成绩查询页，替代在 DevTools Console 手动执行 <code>document.cookie = …</code>。</p>
+  <p>默认 appid=<code>wxmock12345678</code>，token=<code>mock-h5-token-001</code>（对应 <code>scripts/mock_h5_bound_parent.sh</code>）。</p>
+  <p id="hint">正在写入会话并跳转…</p>
+  <script>
+    var params = new URLSearchParams(location.search);
+    var appid = params.get('appid') || 'wxmock12345678';
+    var token = params.get('token') || 'mock-h5-token-001';
+    document.cookie = 'XINSHI_H5_SESSION=' + encodeURIComponent(token) + '; path=/; max-age=86400';
+    setTimeout(function () {
+      location.replace('/h5/score?appid=' + encodeURIComponent(appid));
+    }, 300);
+  </script>
+</body>
+</html>

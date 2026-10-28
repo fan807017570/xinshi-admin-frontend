@@ -106,6 +106,7 @@ export interface H5QueryContextResolveRequest {
 export interface H5ScoreSubject {
   resultId: number
   subjectId: number
+  subjectCode?: string
   subjectName: string
   score: number | null
   maxScore: number | null
